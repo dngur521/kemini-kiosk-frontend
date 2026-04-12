@@ -1,0 +1,321 @@
+/* 기본 초기화 및 폰트 설정 */
+:root {
+  --primary-color: #ffc107; /* 키오스크 포인트 컬러 (노란색/엠버) */
+  --secondary-color: #222;
+  --bg-color: #f4f7f6;
+  --white: #ffffff;
+  --danger: #ff4d4f;
+  --success: #52c41a;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    "Pretendard",
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    Roboto,
+    sans-serif;
+  background-color: var(--bg-color);
+  overflow: hidden; /* 키오스크는 전체화면이 국룰 */
+}
+
+/* 전체 레이아웃 (Grid 활용) */
+.kiosk-wrapper {
+  display: grid;
+  grid-template-columns: 140px 1fr 320px; /* 사이드바 | 메인 | 장바구니 */
+  height: 100vh;
+}
+
+/* 1. 왼쪽 사이드바 (카테고리) */
+.sidebar {
+  background-color: var(--secondary-color);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 20px;
+}
+
+.sidebar button {
+  background: none;
+  border: none;
+  color: #888;
+  padding: 30px 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+
+.sidebar button.active {
+  background-color: var(--primary-color);
+  color: var(--secondary-color);
+  border-radius: 15px 0 0 15px;
+  margin-left: 10px;
+}
+
+/* 2. 중앙 메인 컨텐츠 */
+.content {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.kiosk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.kiosk-header h1 {
+  font-size: 2.2rem;
+  margin: 0;
+  color: var(--secondary-color);
+}
+
+.status {
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+.status.connected {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+/* 메뉴 그리드 */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  padding-bottom: 120px; /* 푸터 공간 확보 */
+}
+
+.menu-card {
+  background: var(--white);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.menu-card:active {
+  transform: scale(0.95);
+}
+
+.menu-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.menu-card h3 {
+  margin: 15px;
+  font-size: 1.3rem;
+}
+
+.menu-card p {
+  margin: 0 15px 15px;
+  font-weight: bold;
+  color: var(--danger);
+  font-size: 1.2rem;
+}
+
+/* 하단 푸터 (음성 인식 바) */
+.footer {
+  position: fixed;
+  bottom: 20px;
+  left: 160px;
+  right: 340px;
+  height: 90px;
+  background: var(--white);
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.1);
+}
+
+.voice-bar {
+  flex: 1;
+  padding: 0 30px;
+  font-size: 1.4rem;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mic-btn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: none;
+  background: var(--success);
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.mic-btn.recording {
+  background: var(--danger);
+  animation: pulse 1.5s infinite;
+}
+
+/* 3. 오른쪽 장바구니 사이드바 */
+.cart-sidebar {
+  background: var(--white);
+  border-left: 1px solid #eee;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-sidebar h3 {
+  font-size: 1.5rem;
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: 10px;
+}
+
+/* 모달 스타일 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 40px;
+  border-radius: 30px;
+  width: 400px;
+  text-align: center;
+}
+
+.qty-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin: 30px 0;
+}
+
+.qty-selector button {
+  width: 60px;
+  height: 60px;
+  font-size: 2rem;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  background: white;
+}
+
+.qty-selector span {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+/* 애니메이션 */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.7);
+  }
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 20px rgba(255, 77, 79, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+  }
+}
+/* 메뉴 카드 내 컨트롤 영역 */
+.menu-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 10px 0 20px;
+}
+
+.qty-btn {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 2px solid var(--primary-color);
+  background: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.qty-btn:active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.current-qty {
+  font-size: 1.1rem;
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* 장바구니 아이템 스타일 (이미지 포함) */
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cart-item-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #eee;
+}
+
+.cart-item-info {
+  flex: 1;
+}
+
+.cart-item-info h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cart-item-info p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.cart-item-price {
+  font-weight: bold;
+  color: var(--secondary-color);
+}
