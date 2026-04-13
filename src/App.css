@@ -319,3 +319,293 @@ body {
   font-weight: bold;
   color: var(--secondary-color);
 }
+
+.fallback-modal {
+  width: 600px !important;
+}
+
+.recommend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin: 25px 0;
+}
+
+.recommend-card {
+  border: 2px solid #eee;
+  border-radius: 15px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recommend-card:hover {
+  border-color: var(--primary-color);
+  background-color: #fffdf5;
+}
+
+.recommend-card img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* 메인 확인 버튼 (확인, 결제하기 등) */
+.btn-primary {
+  background: linear-gradient(
+    135deg,
+    #ffc107 0%,
+    #ff9800 100%
+  ); /* 세련된 그라데이션 */
+  color: #222;
+  border: none;
+  padding: 18px 35px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  border-radius: 15px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255, 193, 7, 0.3); /* 은은한 노란색 그림자 */
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+}
+
+/* 마우스 호버 시 (또는 터치 시작 시) */
+.btn-primary:hover {
+  transform: translateY(-3px); /* 위로 살짝 들리는 효과 */
+  box-shadow: 0 12px 25px rgba(255, 193, 7, 0.4);
+  filter: brightness(1.05);
+}
+
+/* 버튼을 실제로 눌렀을 때 (물리 버튼 느낌) */
+.btn-primary:active {
+  transform: translateY(2px) scale(0.96); /* 아래로 눌리면서 살짝 작아짐 */
+  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);
+}
+
+/* 취소/닫기 버튼 (비교를 위해 깔끔하게) */
+.btn-secondary {
+  background: #f1f3f5;
+  color: #495057;
+  border: none;
+  padding: 18px 35px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #e9ecef;
+}
+
+/* 결제하기 버튼 (기존 스타일 수리) */
+.order-confirm-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 20px !important; /* 더 크게! */
+  background: linear-gradient(
+    135deg,
+    #333 0%,
+    #000 100%
+  ) !important; /* 시크한 블랙 그라데이션 */
+  color: white !important;
+  border: none !important;
+  border-radius: 15px !important;
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  display: block;
+}
+
+.order-confirm-btn:hover {
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, #444 0%, #111 100%) !important;
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.3);
+}
+
+.order-confirm-btn:active {
+  transform: translateY(2px) scale(0.98);
+}
+
+/* 장바구니 하단 레이아웃 정돈 */
+.cart-footer {
+  border-top: 2px solid #eee;
+  padding: 25px 20px;
+  background: white;
+}
+
+.total-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.total-price-row span:last-child {
+  color: #e63946; /* 빨간색으로 포인트 */
+}
+
+/* 장바구니 사이드바 전체 배경색 및 여백 정돈 */
+.cart-sidebar {
+  background-color: #f8f9fa !important; /* 약간 회색빛 돌게 변경 */
+  padding: 20px !important;
+}
+
+/* 개별 장바구니 아이템 레이아웃 (가로 정렬) */
+.cart-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px; /* 아이템 간 간격 */
+  padding: 12px 15px;
+  border-bottom: 1px solid #e9ecef;
+  background-color: white; /* 아이템만 하얗게 강조 */
+  margin-bottom: 10px;
+  border-radius: 10px; /* 둥글게 */
+  padding: 10px 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03); /* 살짝 그림자 */
+}
+
+/* 1. 이미지 박스 스타일 */
+.cart-item-img-box {
+  width: 60px; /* 작게 설정 */
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden; /* 이미지가 박스 밖으로 안 나가게 */
+  border: 1px solid #eee;
+  flex-shrink: 0; /* 공간 협소해도 줄어들지 않게 */
+}
+
+.cart-item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 이미지가 박스에 꽉 차게 비율 조정 */
+}
+
+/* 2. 중앙 구역: 남는 공간을 다 쓰되, 가격을 밀어내지 않게 조절 */
+.cart-item-main {
+  flex: 1;
+  min-width: 0; /* 글자가 길어질 때 가격을 밀어내지 않고 줄어들게 함 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cart-item-main h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap; /* 한 줄로 유지 */
+  overflow: hidden; /* 넘치는 부분 숨김 */
+  text-overflow: ellipsis; /* 끝부분에 ... 표시 */
+  max-width: 120px; /* 적절한 너비 설정 */
+}
+
+/* ➕/➖ 가로형 컨트롤러 스타일 */
+.cart-item-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* 버튼과 숫자 사이 간격 */
+  background: #f1f3f5;
+  width: fit-content; /* 내용물 크기에 딱 맞게 */
+  padding: 3px 10px;
+  border-radius: 20px; /* 둥근 캡슐 모양 */
+}
+
+/* 가로형 작은 버튼 전용 스타일 */
+.cart-qty-btn.tiny-btn {
+  width: 22px !important; /* 더 작게 */
+  height: 22px !important;
+  border-radius: 50%;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  font-size: 0.9rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cart-qty-btn.tiny-btn:hover {
+  background-color: #333;
+  color: white;
+  border-color: #333;
+}
+
+.cart-item-quantity {
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* 3. 오른쪽 가격 구역: 위치 사수 로직 추가 */
+.cart-item-price-box {
+  font-weight: 800;
+  color: #333;
+  /*font-size: 1.1rem;*/
+
+  /* 🔥 핵심 수정 사항 */
+  min-width: 85px; /* 가격이 들어갈 최소 공간 확보 */
+  text-align: right;
+  flex-shrink: 0; /* 절대 줄어들거나 밀려나지 않음 */
+  margin-left: auto; /* 왼쪽 공간을 최대로 확보해서 오른쪽으로 밀기 */
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* 장바구니 하단 Footer 스타일 살짝 보정 */
+.cart-footer {
+  margin-top: 20px;
+  border-top: 2px solid #ddd;
+  padding-top: 15px;
+}
+
+.total-price-row {
+  margin-bottom: 15px;
+  font-size: 1.3rem !important;
+}
+
+/* 추천 모달 하단 버튼 구역 */
+.modal-footer {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center; /* 버튼을 가운데로! */
+  width: 100%;
+}
+
+/* 🔥 환골탈태한 모달 닫기 버튼 */
+.modal-close-btn {
+  background: #333; /* 시크한 블랙 */
+  color: white;
+  border: none;
+  padding: 12px 40px; /* 길쭉하고 시원하게 */
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.modal-close-btn:hover {
+  background: #000;
+  transform: translateY(-2px); /* 살짝 떠오르는 효과 */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close-btn:active {
+  transform: translateY(1px); /* 눌리는 느낌 */
+}
