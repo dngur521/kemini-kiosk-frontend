@@ -12,6 +12,8 @@ function App() {
 
   // 🎓 학습을 위해 발화 내용을 임시 저장하는 상태
   const [learningText, setLearningText] = useState("");
+  // 실제 웹소켓 세션 ID를 저장할 상태
+  const [realSessionId, setRealSessionId] = useState("");
 
   // 🔥 [핵심] 보이스 훅이 언제든 최신 메뉴를 볼 수 있게 하는 Ref
   const menusRef = useRef([]);
@@ -25,6 +27,11 @@ function App() {
   // 🗣️ 시스템 메시지 처리 함수
   const handleSystemMessage = useCallback(
     async (message, speak) => {
+      if (message.startsWith("SYSTEM:SESSION_ID:")) {
+        const sid = message.split(":")[2];
+        setRealSessionId(sid);
+        return;
+      }
       console.log("🛠️ 시스템 메시지 분석:", message);
       // 현재 시점의 가장 최신 발화 내용을 가져옴
       const currentTranscript = transcriptRef.current;
@@ -123,8 +130,7 @@ function App() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-Session-ID":
-                status === "Connected" ? status : "default-session", // 세션 ID 전달 (필요시)
+              "X-Session-ID": realSessionId,
             },
             body: JSON.stringify({
               menuId: menu.id,
