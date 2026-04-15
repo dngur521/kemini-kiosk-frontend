@@ -309,6 +309,14 @@ function App() {
         </div>
       </section>
 
+      {/* 안내 중일 때만 나타나는 플로팅 알림창 */}
+      {isSpeakingUI && (
+        <div className="speaking-toast">
+          <div className="speaking-dot"></div>
+          <span>KEMINI가 대답하고 있어요...</span>
+        </div>
+      )}
+
       {/* 모달 컴포넌트들 */}
       <QuantityModal
         isOpen={logic.isModalOpen}

@@ -25,7 +25,7 @@ export const useVoiceOrder = (onSystemMessage) => {
           isSpeakingRef.current = false;
           setIsSpeakingUI(false);
         }
-      }, 1500);
+      }, 600);
     };
     window.speechSynthesis.speak(utterance);
   };

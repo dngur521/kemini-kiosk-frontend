@@ -609,3 +609,42 @@ body {
 .modal-close-btn:active {
   transform: translateY(1px); /* 눌리는 느낌 */
 }
+
+/* 안내 중일 때 나타나는 플로팅 알림창 */
+.speaking-toast {
+  position: fixed;
+  bottom: 150px; /* 하단 음성 바보다 위쪽에 배치 */
+  left: 50%;
+  transform: translateX(-50%);
+  height: 90px;
+  background-color: rgba(34, 34, 34, 0.9); /* 어두운 배경으로 대비 강화 */
+  color: #ffc107; /* 포인트 컬러인 노란색 글씨 */
+  padding: 15px 40px;
+  border-radius: 50px;
+  font-size: 2rem;
+  font-weight: 800;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  animation: slideUp 0.3s ease-out; /* 아래에서 위로 슥 올라오는 효과 */
+}
+
+@keyframes slideUp {
+  from { bottom: 80px; opacity: 0; }
+  to { bottom: 120px; opacity: 1; }
+}
+
+.speaking-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #ffc107;
+  border-radius: 50%;
+  animation: blink 1s infinite; /* 깜빡이는 불빛 효과 */
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
