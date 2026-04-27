@@ -10,103 +10,142 @@ import { useVoiceOrder } from "./hooks/useVoiceOrder";
 function App() {
   const logic = useKioskLogic();
 
-  // 🎓 학습/분석을 위해 발화 내용을 임시 저장하는 상태
+  // --- 1. 상태 및 레퍼런스 선언 ---
   const [learningText, setLearningText] = useState("");
-  // 🆔 실제 웹소켓 세션 ID를 저장할 상태 (Redis 문맥 동기화용)
   const [realSessionId, setRealSessionId] = useState("");
+  const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
 
-  // 🔥 보이스 훅이 언제든 최신 메뉴를 볼 수 있게 하는 Ref
   const menusRef = useRef([]);
-  useEffect(() => {
-    menusRef.current = logic.menus;
-  }, [logic.menus]);
-
-  // 🗣️ transcript의 최신 상태를 추적하는 Ref (클로저 트랩 방지)
   const transcriptRef = useRef("");
 
-  // 🗣️ 시스템 메시지 처리 함수
-  const handleSystemMessage = useCallback(
-    async (message, speak) => {
-      // 0. 세션 ID 수신
-      if (message.startsWith("SYSTEM:SESSION_ID:")) {
-        const sid = message.split(":")[2];
-        setRealSessionId(sid);
-        return;
-      }
-
-      console.log("🛠️ 시스템 메시지 분석:", message);
-      const currentTranscript = transcriptRef.current;
-
-      try {
-        // 1. 유사 메뉴 추천 (분석 실패 시 3개 제안)
-        if (message.startsWith("SYSTEM:RECOMMEND_LIST:")) {
-          const recommended = JSON.parse(
-            message.replace("SYSTEM:RECOMMEND_LIST:", ""),
-          );
-          setLearningText(currentTranscript);
-          logic.setFallback({ open: true, type: "SIMILAR", data: recommended });
-          speak("비슷한 메뉴를 찾았어요. 화면에서 선택해 주세요.");
+  /**
+   * 🛠️ [추가된 함수] 즉시 처리 로직
+   * 백엔드에서 이미 처리된 주문(직접 매칭)을 프론트 UI 상태에 동기화합니다.
+   * JSON 속성명(cancel, allCancel 등)을 백엔드 직렬화 규칙에 맞췄습니다.
+   */
+  const handleImmediateOrderUpdate = useCallback(
+    (order, speakFunc) => {
+      if (order.allCancel) {
+        logic.clearCart();
+        speakFunc("장바구니를 모두 비웠습니다.");
+      } else if (order.menuDto) {
+        if (order.menuAllCancel) {
+          logic.handleCancel(order.menuDto.name, "ALL");
+          speakFunc(`${order.menuDto.name} 전부 취소했습니다.`);
+        } else if (order.cancel) {
+          // 🔥 order.isCancel 대신 order.cancel 사용
+          logic.handleCancel(order.menuDto.name, order.quantity);
+          speakFunc(`${order.menuDto.name} ${order.quantity}개 취소했습니다.`);
+        } else {
+          logic.updateCartItems(order.menuDto, order.quantity);
+          speakFunc(`${order.menuDto.name} 담았습니다.`);
         }
-
-        // 2. 🔥 의도 재확인 (학습된 단어 매칭 시)
-        else if (message.startsWith("SYSTEM:CONFIRM_MATCH:")) {
-          const matchedMenu = JSON.parse(
-            message.replace("SYSTEM:CONFIRM_MATCH:", ""),
-          );
-          // 확인 모달을 위해 배열로 감싸서 전달
-          logic.setFallback({
-            open: true,
-            type: "CONFIRM",
-            data: [matchedMenu],
-          });
-          speak(`${matchedMenu.name} 맞으실까요?`);
-        }
-
-        // 3. 알 수 없는 명령어 (인기 메뉴 TOP 3 제안)
-        else if (message === "SYSTEM:UNKNOWN_COMMAND") {
-          const top3 = await fetchTop3Menus();
-          setLearningText(currentTranscript);
-          logic.setFallback({ open: true, type: "TOP3", data: top3 });
-          speak("잘 이해하지 못했어요. 대신 인기 메뉴를 추천해 드릴게요.");
-        }
-
-        // 4. 주문 성공
-        else if (message.startsWith("SYSTEM:ORDER_SUCCESS:")) {
-          const [, , name, qty] = message.split(":");
-          const menuObj = menusRef.current.find((m) => m.name === name);
-          if (menuObj) {
-            logic.updateCartItems(menuObj, parseInt(qty));
-            speak(`${name} 담았습니다.`);
-          }
-        }
-
-        // 5. 수량 재확인
-        else if (message.startsWith("SYSTEM:REASK_QUANTITY:")) {
-          const menuName = message.split(":")[2];
-          logic.setModalMenuName(menuName);
-          logic.setIsModalOpen(true);
-          speak(`${menuName} 몇 개 드릴까요?`);
-        }
-
-        // 6. 취소 성공
-        else if (message.startsWith("SYSTEM:CANCEL_SUCCESS:")) {
-          const [, , name, qty] = message.split(":");
-          logic.handleCancel(name, qty);
-          speak(`${name} ${qty === "ALL" ? "전부" : qty + "개"} 취소했습니다.`);
-        }
-
-        // 7. 장바구니 비우기 성공
-        else if (message === "SYSTEM:CLEAR_CART_SUCCESS") {
-          logic.clearCart();
-          speak("장바구니를 모두 비웠습니다.");
-        }
-      } catch (err) {
-        console.error("시스템 메시지 처리 에러:", err);
       }
     },
     [logic],
   );
 
+  /**
+   * 🗣️ [핵심 함수] 큐에 쌓인 주문을 순차적으로 처리하는 프로세서
+   */
+  const processNextOrder = useCallback(
+    async (currentQueue, speakFunc) => {
+      // 🔥 async 확인!
+      if (!currentQueue || currentQueue.length === 0) {
+        console.log("✅ 모든 주문 처리 완료");
+        return;
+      }
+
+      // 1. 큐에서 첫 번째 항목 추출
+      const [currentOrder, ...remaining] = currentQueue;
+      setOrderQueue(remaining);
+
+      console.log("🎯 현재 처리 중인 데이터:", currentOrder);
+
+      // 2. 타입별 분기 처리
+
+      // A. 추천이 필요한 경우 (unknown: true)
+      if (currentOrder.unknown) {
+        // 🔥 수정 포인트: 데이터가 있는지 먼저 확인
+        let displayData = currentOrder.suggestedMenus || [];
+        const type = displayData.length > 0 ? "SIMILAR" : "TOP3";
+
+        // 🔥 [핵심] 데이터가 없는 TOP3 상황이라면 직접 API를 호출해서 데이터를 채웁니다.
+        if (type === "TOP3" && displayData.length === 0) {
+          console.log("📈 인기 메뉴 데이터를 가져옵니다...");
+          displayData = await fetchTop3Menus();
+        }
+
+        logic.setFallback({
+          open: true,
+          type: type,
+          data: displayData, // 이제 빈 배열이 아니라 꽉 찬 데이터가 들어갑니다!
+        });
+
+        speakFunc(
+          type === "SIMILAR"
+            ? "비슷한 메뉴를 찾았어요."
+            : "인기 메뉴를 추천해 드릴게요.",
+        );
+      }
+
+      // B. 의도 확인이 필요한 경우 (learnedMatch: true)
+      else if (
+        currentOrder.learnedMatch &&
+        !currentOrder.cancel &&
+        !currentOrder.allCancel
+      ) {
+        logic.setFallback({
+          open: true,
+          type: "CONFIRM",
+          data: [currentOrder.menuDto],
+        });
+        speakFunc(`${currentOrder.menuDto.name} 맞으실까요?`);
+      }
+
+      // C. 수량이 0인 경우 재질문
+      else if (
+        currentOrder.quantity === 0 &&
+        !currentOrder.cancel &&
+        !currentOrder.allCancel
+      ) {
+        logic.setModalMenuName(currentOrder.menuDto.name);
+        logic.setIsModalOpen(true);
+        speakFunc(`${currentOrder.menuDto.name} 몇 개 드릴까요?`);
+      }
+
+      // D. 즉시 처리 (일반 주문 및 취소)
+      else {
+        handleImmediateOrderUpdate(currentOrder, speakFunc);
+        // 즉시 처리 후 재귀적으로 다음 큐 실행
+        await processNextOrder(remaining, speakFunc);
+      }
+    },
+    [logic, handleImmediateOrderUpdate],
+  );
+
+  /**
+   * 🗣️ 시스템 메시지 수신부
+   */
+  const handleSystemMessage = useCallback(
+    async (message, speakFunc) => {
+      if (message.startsWith("SYSTEM:SESSION_ID:")) {
+        setRealSessionId(message.split(":")[2]);
+        return;
+      }
+
+      if (message.startsWith("SYSTEM:PROCESS_ORDERS:")) {
+        const orders = JSON.parse(
+          message.replace("SYSTEM:PROCESS_ORDERS:", ""),
+        );
+        setLearningText(transcriptRef.current);
+        processNextOrder(orders, speakFunc); // 큐 처리 시작
+      }
+    },
+    [processNextOrder],
+  );
+
+  // --- 2. 커스텀 훅 및 이펙트 ---
   const {
     status,
     transcript,
@@ -119,19 +158,20 @@ function App() {
   } = useVoiceOrder(handleSystemMessage);
 
   useEffect(() => {
+    menusRef.current = logic.menus;
+  }, [logic.menus]);
+  useEffect(() => {
     transcriptRef.current = transcript;
   }, [transcript]);
 
   /**
-   * 🎓 모달에서 메뉴를 선택했을 때 (학습 및 담기)
+   * 🎓 모달 액션 처리 (인터랙션 완료 후 큐 재개)
    */
   const handleRecommendSelect = async (menu) => {
     let finalQty = 1;
-
-    // 'SIMILAR' 모드일 때만 백엔드 학습 API 호출
     if (logic.fallback.type === "SIMILAR" && learningText) {
       try {
-        const response = await fetch(
+        const res = await fetch(
           `https://kemini-kiosk-api.duckdns.org/api/learning`,
           {
             method: "POST",
@@ -142,48 +182,38 @@ function App() {
             body: JSON.stringify({ menuId: menu.id, text: learningText }),
           },
         );
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            finalQty = result.data;
-          }
-        }
+        const result = await res.json();
+        if (result.success && result.data) finalQty = result.data;
       } catch (e) {
-        console.error("학습 API 통신 에러:", e);
+        console.error(e);
       }
     }
 
-    // 장바구니에 담고 모달 닫기
     logic.updateCartItems(menu, finalQty);
     logic.setFallback({ ...logic.fallback, open: false });
-    setLearningText("");
     speak(`${menu.name} 담았습니다.`);
+    // 0.5초 뒤 다음 큐 실행
+    setTimeout(() => processNextOrder(orderQueue, speak), 500);
   };
 
-  /**
-   * 🔥 [추가] "아니요, 달라요"를 눌렀을 때 처리 (카테고리 기반 추천)
-   */
   const handleConfirmReject = async () => {
     const wrongMenu = logic.fallback.data[0];
-    console.log(`❌ 사용자 거절: ${wrongMenu.name} 아님.`);
-
-    speak("죄송해요. 그럼 이 카테고리의 인기 메뉴들을 추천해 드릴게요.");
-
+    speak("죄송해요. 다른 메뉴들을 추천해 드릴게요.");
     try {
-      // 해당 메뉴의 카테고리 TOP 3 로드
-      const categoryTop3 = await fetchCategoryTop3(wrongMenu.categoryName);
-
-      // 모달 타입을 TOP3로 변경하여 새로운 리스트 노출
-      logic.setFallback({
-        open: true,
-        type: "TOP3",
-        data: categoryTop3,
-      });
+      const top3 = await fetchCategoryTop3(wrongMenu.categoryName);
+      logic.setFallback({ open: true, type: "TOP3", data: top3 });
     } catch (e) {
-      console.error("카테고리 추천 로드 에러:", e);
       logic.setFallback({ ...logic.fallback, open: false });
+      processNextOrder(orderQueue, speak);
     }
+  };
+
+  const handleQuantityConfirm = (qty) => {
+    const menu = menusRef.current.find((m) => m.name === logic.modalMenuName);
+    logic.updateCartItems(menu, qty);
+    logic.setIsModalOpen(false);
+    speak(`${logic.modalMenuName} 확인했습니다.`);
+    setTimeout(() => processNextOrder(orderQueue, speak), 500);
   };
 
   useEffect(() => {
@@ -210,7 +240,7 @@ function App() {
         ))}
       </aside>
 
-      {/* 메인 컨텐츠 */}
+      {/* 메인 영역 */}
       <main className="content">
         <header className="kiosk-header">
           <h1>KEMINI CAFE</h1>
@@ -335,7 +365,7 @@ function App() {
         </div>
       </section>
 
-      {/* 대답 토스트 */}
+      {/* 모달 모음 */}
       {isSpeakingUI && (
         <div className="speaking-toast">
           <div className="speaking-dot"></div>
@@ -343,30 +373,26 @@ function App() {
         </div>
       )}
 
-      {/* 모달 모음 */}
       <QuantityModal
         isOpen={logic.isModalOpen}
         menuName={logic.modalMenuName}
-        onConfirm={(qty) => {
-          const menu = menusRef.current.find(
-            (m) => m.name === logic.modalMenuName,
-          );
-          logic.updateCartItems(menu, qty);
+        onConfirm={handleQuantityConfirm}
+        onClose={() => {
           logic.setIsModalOpen(false);
-          speak(`${logic.modalMenuName} 확인했습니다.`);
+          processNextOrder(orderQueue, speak);
         }}
-        onClose={() => logic.setIsModalOpen(false)}
       />
-
       <FallbackModal
         isOpen={logic.fallback.open}
         type={logic.fallback.type}
         data={logic.fallback.data}
-        onSelect={handleRecommendSelect} // "네/메뉴클릭"
-        onReject={handleConfirmReject} // 🔥 "아니요"
-        onClose={() => logic.setFallback({ ...logic.fallback, open: false })}
+        onSelect={handleRecommendSelect}
+        onReject={handleConfirmReject}
+        onClose={() => {
+          logic.setFallback({ ...logic.fallback, open: false });
+          processNextOrder(orderQueue, speak);
+        }}
       />
-
       <PaymentSuccessModal
         isOpen={logic.isSuccessOpen}
         orderNumber={logic.orderNumber}
