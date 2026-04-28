@@ -80,6 +80,7 @@ function App() {
           open: true,
           type: type,
           data: displayData, // 이제 빈 배열이 아니라 꽉 찬 데이터가 들어갑니다!
+          quantity: currentOrder.quantity,
         });
 
         speakFunc(
@@ -99,6 +100,7 @@ function App() {
           open: true,
           type: "CONFIRM",
           data: [currentOrder.menuDto],
+          quantity: currentOrder.quantity,
         });
         speakFunc(`${currentOrder.menuDto.name} 맞으실까요?`);
       }
@@ -168,7 +170,8 @@ function App() {
    * 🎓 모달 액션 처리 (인터랙션 완료 후 큐 재개)
    */
   const handleRecommendSelect = async (menu) => {
-    let finalQty = 1;
+    // 🔥 백엔드에서 온 수량을 우선 사용하고, 없으면 1로 기본값 설정
+    let finalQty = logic.fallback.quantity || 1;
     if (logic.fallback.type === "SIMILAR" && learningText) {
       try {
         const res = await fetch(
@@ -183,6 +186,7 @@ function App() {
           },
         );
         const result = await res.json();
+        // 학습 API 응답에 수량이 있다면 업데이트 (보통 1차 인식 수량과 동일)
         if (result.success && result.data) finalQty = result.data;
       } catch (e) {
         console.error(e);
@@ -196,13 +200,50 @@ function App() {
     setTimeout(() => processNextOrder(orderQueue, speak), 500);
   };
 
+  /**
+   * 🎓 [하이브리드 핵심] 사용자가 "아니오(Reject)"를 눌렀을 때의 처리
+   */
   const handleConfirmReject = async () => {
     const wrongMenu = logic.fallback.data[0];
-    speak("죄송해요. 다른 메뉴들을 추천해 드릴게요.");
+    speak("죄송해요. 원하시는 메뉴를 다시 찾아볼게요.");
+
     try {
+      // 1. 사용자가 처음에 했던 말(learningText)이 있는지 확인
+      if (learningText) {
+        console.log("🤖 AI 시맨틱 추천 재시도 중... Query:", learningText);
+
+        // 백엔드에 새로 만든 AI 추천 엔드포인트 호출
+        const response = await fetch(
+          `https://kemini-kiosk-api.duckdns.org/api/ai/recommend`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: learningText }),
+          },
+        );
+
+        const aiSuggestions = await response.json();
+
+        // 2. AI 추천 결과가 있다면(0.85점 이상) SIMILAR 모달로 표시
+        if (aiSuggestions && aiSuggestions.length > 0) {
+          logic.setFallback({
+            open: true,
+            type: "SIMILAR",
+            data: aiSuggestions,
+          });
+          speak("혹시 이 메뉴들 중에 있을까요?");
+          return; // AI가 찾았으므로 여기서 종료
+        }
+      }
+
+      // 3. AI도 못 찾았거나 원본 텍스트가 없다면, 기존처럼 카테고리 TOP3로 폴백 (우혁님 로직 보존)
+      console.log("⚠️ AI 추천 결과 없음 -> 카테고리 인기 메뉴로 폴백");
       const top3 = await fetchCategoryTop3(wrongMenu.categoryName);
       logic.setFallback({ open: true, type: "TOP3", data: top3 });
+      speak("대신 이 카테고리에서 가장 인기 있는 메뉴들이에요.");
     } catch (e) {
+      console.error("AI 추천 재시도 실패:", e);
+      // 에러 발생 시 모달 닫고 다음 주문 큐로 진행
       logic.setFallback({ ...logic.fallback, open: false });
       processNextOrder(orderQueue, speak);
     }
