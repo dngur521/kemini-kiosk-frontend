@@ -19,7 +19,7 @@ function App() {
   const transcriptRef = useRef("");
 
   /**
-   * 🛠️ [추가된 함수] 즉시 처리 로직
+   * [즉시 처리 로직]
    * 백엔드에서 이미 처리된 주문(직접 매칭)을 프론트 UI 상태에 동기화합니다.
    * JSON 속성명(cancel, allCancel 등)을 백엔드 직렬화 규칙에 맞췄습니다.
    */
@@ -46,7 +46,7 @@ function App() {
   );
 
   /**
-   * 🗣️ [핵심 함수] 큐에 쌓인 주문을 순차적으로 처리하는 프로세서
+   * [핵심 함수] 큐에 쌓인 주문을 순차적으로 처리하는 프로세서
    */
   const processNextOrder = useCallback(
     async (currentQueue, speakFunc) => {
@@ -70,7 +70,7 @@ function App() {
         let displayData = currentOrder.suggestedMenus || [];
         const type = displayData.length > 0 ? "SIMILAR" : "TOP3";
 
-        // 🔥 [핵심] 데이터가 없는 TOP3 상황이라면 직접 API를 호출해서 데이터를 채웁니다.
+        // [핵심] 데이터가 없는 TOP3 상황이라면 직접 API를 호출해서 데이터를 채웁니다.
         if (type === "TOP3" && displayData.length === 0) {
           console.log("📈 인기 메뉴 데이터를 가져옵니다...");
           displayData = await fetchTop3Menus();
@@ -127,7 +127,7 @@ function App() {
   );
 
   /**
-   * 🗣️ 시스템 메시지 수신부
+   * 시스템 메시지 수신부
    */
   const handleSystemMessage = useCallback(
     async (message, speakFunc) => {
@@ -167,10 +167,10 @@ function App() {
   }, [transcript]);
 
   /**
-   * 🎓 모달 액션 처리 (인터랙션 완료 후 큐 재개)
+   * 모달 액션 처리 (인터랙션 완료 후 큐 재개)
    */
   const handleRecommendSelect = async (menu) => {
-    // 🔥 백엔드에서 온 수량을 우선 사용하고, 없으면 1로 기본값 설정
+    // 백엔드에서 온 수량을 우선 사용하고, 없으면 1로 기본값 설정
     let finalQty = logic.fallback.quantity || 1;
     if (logic.fallback.type === "SIMILAR" && learningText) {
       try {
@@ -201,7 +201,7 @@ function App() {
   };
 
   /**
-   * 🎓 [하이브리드 핵심] 사용자가 "아니오(Reject)"를 눌렀을 때의 처리
+   * [하이브리드 핵심] 사용자가 "아니오(Reject)"를 눌렀을 때의 처리
    */
   const handleConfirmReject = async () => {
     const wrongMenu = logic.fallback.data[0];
@@ -224,7 +224,7 @@ function App() {
 
         const aiSuggestions = await response.json();
 
-        // 2. AI 추천 결과가 있다면(0.85점 이상) SIMILAR 모달로 표시
+        // 2. AI 추천 결과가 있다면 SIMILAR 모달로 표시
         if (aiSuggestions && aiSuggestions.length > 0) {
           logic.setFallback({
             open: true,
@@ -236,7 +236,7 @@ function App() {
         }
       }
 
-      // 3. AI도 못 찾았거나 원본 텍스트가 없다면, 기존처럼 카테고리 TOP3로 폴백 (우혁님 로직 보존)
+      // 3. AI도 못 찾았거나 원본 텍스트가 없다면, 기존처럼 카테고리 TOP3로 폴백 (기존 로직 보존)
       console.log("⚠️ AI 추천 결과 없음 -> 카테고리 인기 메뉴로 폴백");
       const top3 = await fetchCategoryTop3(wrongMenu.categoryName);
       logic.setFallback({ open: true, type: "TOP3", data: top3 });
