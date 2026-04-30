@@ -629,6 +629,7 @@ body {
   align-items: center;
   gap: 15px;
   animation: slideUp 0.3s ease-out; /* 아래에서 위로 슥 올라오는 효과 */
+  z-index: 2000; /* 모달의 z-index(보통 1000)보다 높게 설정 */
 }
 
 @keyframes slideUp {

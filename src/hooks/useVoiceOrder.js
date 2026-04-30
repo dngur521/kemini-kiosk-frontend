@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react"; 
 import { WS_URL } from "../constants/api";
 
-export const useVoiceOrder = (onSystemMessage) => {
+export const useVoiceOrder = (onSystemMessage, isAnyModalOpen) => {
   const [status, setStatus] = useState("Disconnected");
   const [transcript, setTranscript] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -11,6 +11,11 @@ export const useVoiceOrder = (onSystemMessage) => {
   const audioContextRef = useRef(null);
   const streamRef = useRef(null);
   const isSpeakingRef = useRef(false);
+  const isAnyModalOpenRef = useRef(isAnyModalOpen);
+
+  useEffect(() => {
+    isAnyModalOpenRef.current = isAnyModalOpen;
+  });
 
   const speak = (text) => {
     const utterance = new SpeechSynthesisUtterance(text);
@@ -64,7 +69,8 @@ export const useVoiceOrder = (onSystemMessage) => {
     workletNode.port.onmessage = (e) => {
       if (
         socketRef.current.readyState === WebSocket.OPEN &&
-        !isSpeakingRef.current
+        !isSpeakingRef.current &&
+        !isAnyModalOpenRef.current()
       ) {
         socketRef.current.send(e.data);
       }

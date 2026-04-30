@@ -50,14 +50,15 @@ function App() {
    */
   const processNextOrder = useCallback(
     async (currentQueue, speakFunc) => {
+      const targetQueue = currentQueue || orderQueue;
       // 🔥 async 확인!
-      if (!currentQueue || currentQueue.length === 0) {
+      if (!targetQueue || targetQueue.length === 0) {
         console.log("✅ 모든 주문 처리 완료");
         return;
       }
 
       // 1. 큐에서 첫 번째 항목 추출
-      const [currentOrder, ...remaining] = currentQueue;
+      const [currentOrder, ...remaining] = targetQueue;
       setOrderQueue(remaining);
 
       console.log("🎯 현재 처리 중인 데이터:", currentOrder);
@@ -123,7 +124,7 @@ function App() {
         await processNextOrder(remaining, speakFunc);
       }
     },
-    [logic, handleImmediateOrderUpdate],
+    [logic, handleImmediateOrderUpdate, orderQueue],
   );
 
   /**
@@ -157,7 +158,7 @@ function App() {
     startRecording,
     stopRecording,
     speak,
-  } = useVoiceOrder(handleSystemMessage);
+  } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen);
 
   useEffect(() => {
     menusRef.current = logic.menus;
@@ -197,7 +198,8 @@ function App() {
     logic.setFallback({ ...logic.fallback, open: false });
     speak(`${menu.name} 담았습니다.`);
     // 0.5초 뒤 다음 큐 실행
-    setTimeout(() => processNextOrder(orderQueue, speak), 500);
+    //setTimeout(() => processNextOrder(orderQueue, speak), 500);
+    setTimeout(() => processNextOrder(undefined, speak), 500);
   };
 
   /**
@@ -205,6 +207,7 @@ function App() {
    */
   const handleConfirmReject = async () => {
     const wrongMenu = logic.fallback.data[0];
+    const currentQty = logic.fallback.quantity;
     speak("죄송해요. 원하시는 메뉴를 다시 찾아볼게요.");
 
     try {
@@ -230,6 +233,7 @@ function App() {
             open: true,
             type: "SIMILAR",
             data: aiSuggestions,
+            quantity: currentQty,
           });
           speak("혹시 이 메뉴들 중에 있을까요?");
           return; // AI가 찾았으므로 여기서 종료
@@ -239,7 +243,7 @@ function App() {
       // 3. AI도 못 찾았거나 원본 텍스트가 없다면, 기존처럼 카테고리 TOP3로 폴백 (기존 로직 보존)
       console.log("⚠️ AI 추천 결과 없음 -> 카테고리 인기 메뉴로 폴백");
       const top3 = await fetchCategoryTop3(wrongMenu.categoryName);
-      logic.setFallback({ open: true, type: "TOP3", data: top3 });
+      logic.setFallback({ open: true, type: "TOP3", data: top3, quantity: currentQty });
       speak("대신 이 카테고리에서 가장 인기 있는 메뉴들이에요.");
     } catch (e) {
       console.error("AI 추천 재시도 실패:", e);
