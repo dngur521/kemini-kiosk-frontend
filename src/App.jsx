@@ -158,6 +158,7 @@ function App() {
     startRecording,
     stopRecording,
     speak,
+    stopSpeak,
   } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen);
 
   useEffect(() => {
@@ -206,6 +207,7 @@ function App() {
    * [하이브리드 핵심] 사용자가 "아니오(Reject)"를 눌렀을 때의 처리
    */
   const handleConfirmReject = async () => {
+    window.speechSynthesis.cancel();
     const wrongMenu = logic.fallback.data[0];
     const currentQty = logic.fallback.quantity;
     speak("죄송해요. 원하시는 메뉴를 다시 찾아볼게요.");
@@ -434,6 +436,7 @@ function App() {
         onSelect={handleRecommendSelect}
         onReject={handleConfirmReject}
         onClose={() => {
+          stopSpeak();
           logic.setFallback({ ...logic.fallback, open: false });
           processNextOrder(orderQueue, speak);
         }}

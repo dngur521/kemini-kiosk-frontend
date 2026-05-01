@@ -17,7 +17,15 @@ export const useVoiceOrder = (onSystemMessage, isAnyModalOpen) => {
     isAnyModalOpenRef.current = isAnyModalOpen;
   });
 
+  // 음성 중단 및 UI 상태 초기화 함수 추가
+  const stopSpeak = () => {
+    window.speechSynthesis.cancel(); // 소리 끄기
+    isSpeakingRef.current = false;   // 음성 진행 중 레퍼런스 초기화
+    setIsSpeakingUI(false);          // 📢 UI 토스트 사라지게 하기
+  };
+
   const speak = (text) => {
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "ko-KR";
     utterance.onstart = () => {
@@ -95,5 +103,6 @@ export const useVoiceOrder = (onSystemMessage, isAnyModalOpen) => {
     stopRecording,
     setTranscript,
     speak,
+    stopSpeak,
   };
 };
