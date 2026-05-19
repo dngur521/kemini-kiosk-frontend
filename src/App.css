@@ -613,18 +613,24 @@ body {
 /* 안내 중일 때 나타나는 플로팅 알림창 */
 .speaking-toast {
   position: fixed;
-  bottom: 150px; /* 하단 음성 바보다 위쪽에 배치 */
-  left: 50%;
-  transform: translateX(-50%);
-  height: 90px;
+  top: 20px;
+  right: 340px;
+  left: auto;              /* 기존 중앙 정렬 해제 */
+  transform: none;         /* 기존 중앙 정렬 해제 */
+  
+  height: 50px;           
+  padding: 5px 20px;      
+  font-size: 1.1rem;     
+  border-radius: 25px;
+
   background-color: rgba(34, 34, 34, 0.9); /* 어두운 배경으로 대비 강화 */
   color: #ffc107; /* 포인트 컬러인 노란색 글씨 */
   padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 2rem;
+  border-radius: 25px;
+
+  font-size: 1rem;
   font-weight: 800;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  z-index: 999;
   display: flex;
   align-items: center;
   gap: 15px;
