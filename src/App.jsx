@@ -6,15 +6,18 @@ import PaymentSuccessModal from "./components/PaymentSuccessModal";
 import { QuantityModal } from "./components/QuantityModal";
 import { useEyeTracking } from "./hooks/useEyeTracking";
 import { useKioskLogic } from "./hooks/useKioskLogic";
+import { useLipReading } from "./hooks/useLipReading";
 import { useVoiceOrder } from "./hooks/useVoiceOrder";
 
 function App() {
   const logic = useKioskLogic();
+  useLipReading();
 
   // --- 1. 상태 및 레퍼런스 선언 ---
   const [learningText, setLearningText] = useState("");
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
+  const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 결과 표시용
 
   // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
@@ -144,6 +147,13 @@ function App() {
         );
         setLearningText(transcriptRef.current);
         processNextOrder(orders, speakFunc); // 큐 처리 시작
+        return;
+      }
+
+      if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
+        const [, , , menuName, scoreStr] = message.split(":");
+        setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
+        setTimeout(() => setLipReadingMatch(null), 3000);
       }
     },
     [processNextOrder],
@@ -427,6 +437,11 @@ function App() {
         <div className="speaking-toast">
           <div className="speaking-dot"></div>
           <span>KEMINI가 대답하고 있어요...</span>
+        </div>
+      )}
+      {lipReadingMatch && (
+        <div className="lipreading-toast">
+          <span>립리딩: {lipReadingMatch.menuName} ({Math.round(lipReadingMatch.score * 100)}%)</span>
         </div>
       )}
 

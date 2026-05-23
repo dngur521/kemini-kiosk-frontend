@@ -646,6 +646,25 @@ body {
   transform: translateY(1px); /* 눌리는 느낌 */
 }
 
+/* 립리딩 결과 플로팅 알림창 */
+.lipreading-toast {
+  position: fixed;
+  top: 20px;
+  left: 160px; /* 사이드바 너비만큼 띄움 */
+  height: 50px;
+  padding: 5px 25px;
+  background-color: rgba(24, 144, 255, 0.9);
+  color: white;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(24, 144, 255, 0.3);
+  display: flex;
+  align-items: center;
+  animation: slideUp 0.3s ease-out;
+  z-index: 2000;
+}
+
 /* 안내 중일 때 나타나는 플로팅 알림창 */
 .speaking-toast {
   position: fixed;
