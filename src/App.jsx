@@ -18,6 +18,7 @@ function App() {
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
   const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 결과 표시용
+  const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
 
   // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
@@ -150,9 +151,16 @@ function App() {
         return;
       }
 
+      if (message.startsWith("SYSTEM:LIPREADING_ANALYZING")) {
+        setIsLipReadingAnalyzing(true);
+        return;
+      }
+
       if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
         const [, , , menuName, scoreStr] = message.split(":");
+        setIsLipReadingAnalyzing(false);
         setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
+        speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
         setTimeout(() => setLipReadingMatch(null), 3000);
       }
     },
@@ -437,6 +445,12 @@ function App() {
         <div className="speaking-toast">
           <div className="speaking-dot"></div>
           <span>KEMINI가 대답하고 있어요...</span>
+        </div>
+      )}
+      {isLipReadingAnalyzing && (
+        <div className="lipreading-toast analyzing">
+          <div className="lipreading-spinner"></div>
+          <span>입술 모양 분석 중...</span>
         </div>
       )}
       {lipReadingMatch && (

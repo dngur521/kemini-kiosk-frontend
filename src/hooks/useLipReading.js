@@ -1,16 +1,21 @@
 import { useEffect } from "react";
 import { LIPREADING_WS_URL } from "../constants/api";
 
-// 마운트 시 WebSocket 연결을 열고 페이지를 나갈 때까지 유지.
-// Python이 프레임을 축적한 후 STT 수신 시점에 추론하므로,
-// 마이크 버튼과 독립적으로 항상 스트리밍해야 한다.
+// 마운트 시 WebSocket 연결을 열고 페이지 종료까지 유지.
+// 타이밍 제어(어느 프레임을 추론에 쓸지)는 Spring Boot 원형 버퍼가 담당하므로
+// React는 항상 전송만 하면 된다.
 export const useLipReading = () => {
   useEffect(() => {
     let ws, interval, stream;
+    let cancelled = false; // StrictMode 이중 마운트 대응
 
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
 
         const video = document.createElement("video");
         video.srcObject = stream;
@@ -38,6 +43,7 @@ export const useLipReading = () => {
     })();
 
     return () => {
+      cancelled = true;
       clearInterval(interval);
       ws?.close();
       stream?.getTracks().forEach((t) => t.stop());

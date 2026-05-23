@@ -646,7 +646,7 @@ body {
   transform: translateY(1px); /* 눌리는 느낌 */
 }
 
-/* 립리딩 결과 플로팅 알림창 */
+/* 립리딩 결과/분석 중 플로팅 알림창 */
 .lipreading-toast {
   position: fixed;
   top: 20px;
@@ -661,8 +661,23 @@ body {
   box-shadow: 0 6px 20px rgba(24, 144, 255, 0.3);
   display: flex;
   align-items: center;
+  gap: 10px;
   animation: slideUp 0.3s ease-out;
   z-index: 2000;
+}
+
+.lipreading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* 안내 중일 때 나타나는 플로팅 알림창 */
