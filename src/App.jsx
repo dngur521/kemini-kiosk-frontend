@@ -4,6 +4,7 @@ import "./App.css";
 import FallbackModal from "./components/FallbackModal";
 import PaymentSuccessModal from "./components/PaymentSuccessModal";
 import { QuantityModal } from "./components/QuantityModal";
+import { useEyeTracking } from "./hooks/useEyeTracking";
 import { useKioskLogic } from "./hooks/useKioskLogic";
 import { useVoiceOrder } from "./hooks/useVoiceOrder";
 
@@ -19,6 +20,8 @@ function App() {
   const menusRef = useRef([]);
   // handleSystemMessage의 stale closure를 피하기 위해 ref로 최신 transcript를 유지
   const transcriptRef = useRef("");
+  // 아이트래킹 패턴 핸들러에서 speak 최신값을 참조하기 위한 ref
+  const speakRef = useRef(null);
 
   /**
    * [즉시 처리 로직]
@@ -165,6 +168,31 @@ function App() {
   useEffect(() => {
     transcriptRef.current = transcript;
   }, [transcript]);
+  useEffect(() => {
+    speakRef.current = speak;
+  });
+
+  // --- 아이트래킹 ---
+  const { isActive: isEyeActive, detectedPattern, fixedGazePos, toggleEyeTracking, clearPattern } =
+    useEyeTracking(() => logic.fallback.open || logic.isModalOpen || logic.isSuccessOpen);
+
+  useEffect(() => {
+    if (!detectedPattern) return;
+    if (detectedPattern === "wandering") {
+      speakRef.current?.("도움이 필요하신가요? 음성 버튼을 누르고 주문해 보세요.");
+    } else if (detectedPattern === "deviation") {
+      speakRef.current?.("장바구니를 확인하고 계신가요? 결제를 원하시면 결제하기 버튼을 눌러주세요.")
+    } else if (detectedPattern === "fixed" && fixedGazePos) {
+      const screenX = fixedGazePos.x * window.innerWidth;
+      const screenY = fixedGazePos.y * window.innerHeight;
+      const el = document.elementFromPoint(screenX, screenY);
+      const card = el?.closest("[data-menu-id]");
+      if (card) {
+        speakRef.current?.(`${card.dataset.menuName}에 관심이 있으신가요? 음성 버튼을 누르고 주문해 보세요.`);
+      }
+    }
+    clearPattern();
+  }, [detectedPattern, fixedGazePos, clearPattern]);
 
   /**
    * 모달 액션 처리 (인터랙션 완료 후 큐 재개)
@@ -277,7 +305,7 @@ function App() {
           {logic.menus
             .filter((m) => m.categoryName === logic.selectedCat)
             .map((menu) => (
-              <div key={menu.id} className="menu-card">
+              <div key={menu.id} className="menu-card" data-menu-id={menu.id} data-menu-name={menu.name}>
                 <img src={menu.imageUrl} alt={menu.name} />
                 <div className="menu-info">
                   <h3>{menu.name}</h3>
@@ -306,6 +334,13 @@ function App() {
         </div>
 
         <footer className="footer">
+          <button
+            className={`eye-btn ${isEyeActive ? "active" : ""}`}
+            onClick={toggleEyeTracking}
+            title={isEyeActive ? "아이트래킹 끄기" : "아이트래킹 켜기"}
+          >
+            👁️
+          </button>
           <div className="voice-bar">
             {isRecording
               ? transcript || "듣고 있어요..."
