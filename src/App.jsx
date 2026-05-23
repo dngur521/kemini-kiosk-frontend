@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchCategoryTop3, fetchTop3Menus } from "./api/kioskApi";
+import { fetchAiRecommend, fetchCategoryTop3, fetchTop3Menus, postLearning } from "./api/kioskApi";
 import "./App.css";
 import FallbackModal from "./components/FallbackModal";
 import PaymentSuccessModal from "./components/PaymentSuccessModal";
@@ -15,7 +15,9 @@ function App() {
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
 
+  // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
+  // handleSystemMessage의 stale closure를 피하기 위해 ref로 최신 transcript를 유지
   const transcriptRef = useRef("");
 
   /**
@@ -33,7 +35,6 @@ function App() {
           logic.handleCancel(order.menuDto.name, "ALL");
           speakFunc(`${order.menuDto.name} 전부 취소했습니다.`);
         } else if (order.cancel) {
-          // 🔥 order.isCancel 대신 order.cancel 사용
           logic.handleCancel(order.menuDto.name, order.quantity);
           speakFunc(`${order.menuDto.name} ${order.quantity}개 취소했습니다.`);
         } else {
@@ -51,7 +52,6 @@ function App() {
   const processNextOrder = useCallback(
     async (currentQueue, speakFunc) => {
       const targetQueue = currentQueue || orderQueue;
-      // 🔥 async 확인!
       if (!targetQueue || targetQueue.length === 0) {
         console.log("✅ 모든 주문 처리 완료");
         return;
@@ -67,20 +67,18 @@ function App() {
 
       // A. 추천이 필요한 경우 (unknown: true)
       if (currentOrder.unknown) {
-        // 🔥 수정 포인트: 데이터가 있는지 먼저 확인
         let displayData = currentOrder.suggestedMenus || [];
         const type = displayData.length > 0 ? "SIMILAR" : "TOP3";
 
-        // [핵심] 데이터가 없는 TOP3 상황이라면 직접 API를 호출해서 데이터를 채웁니다.
+        // 백엔드가 suggestedMenus를 내려주지 않은 TOP3 상황이면 직접 API 호출
         if (type === "TOP3" && displayData.length === 0) {
-          console.log("📈 인기 메뉴 데이터를 가져옵니다...");
           displayData = await fetchTop3Menus();
         }
 
         logic.setFallback({
           open: true,
           type: type,
-          data: displayData, // 이제 빈 배열이 아니라 꽉 찬 데이터가 들어갑니다!
+          data: displayData,
           quantity: currentOrder.quantity,
         });
 
@@ -176,19 +174,7 @@ function App() {
     let finalQty = logic.fallback.quantity || 1;
     if (logic.fallback.type === "SIMILAR" && learningText) {
       try {
-        const res = await fetch(
-          `https://kemini-kiosk-api.duckdns.org/api/learning`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Session-ID": realSessionId,
-            },
-            body: JSON.stringify({ menuId: menu.id, text: learningText }),
-          },
-        );
-        const result = await res.json();
-        // 학습 API 응답에 수량이 있다면 업데이트 (보통 1차 인식 수량과 동일)
+        const result = await postLearning(menu.id, learningText, realSessionId);
         if (result.success && result.data) finalQty = result.data;
       } catch (e) {
         console.error(e);
@@ -198,9 +184,7 @@ function App() {
     logic.updateCartItems(menu, finalQty);
     logic.setFallback({ ...logic.fallback, open: false });
     speak(`${menu.name} 담았습니다.`);
-    // 0.5초 뒤 다음 큐 실행
-    //setTimeout(() => processNextOrder(orderQueue, speak), 500);
-    setTimeout(() => processNextOrder(undefined, speak), 500);
+    setTimeout(() => processNextOrder(orderQueue, speak), 500);
   };
 
   /**
@@ -214,20 +198,9 @@ function App() {
 
     try {
       // 1. 사용자가 처음에 했던 말(learningText)이 있는지 확인
+      // 1. 원본 발화가 있으면 AI 시맨틱 검색으로 재시도
       if (learningText) {
-        console.log("🤖 AI 시맨틱 추천 재시도 중... Query:", learningText);
-
-        // 백엔드에 새로 만든 AI 추천 엔드포인트 호출
-        const response = await fetch(
-          `https://kemini-kiosk-api.duckdns.org/api/ai/recommend`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: learningText }),
-          },
-        );
-
-        const aiSuggestions = await response.json();
+        const aiSuggestions = await fetchAiRecommend(learningText);
 
         // 2. AI 추천 결과가 있다면 SIMILAR 모달로 표시
         if (aiSuggestions && aiSuggestions.length > 0) {
@@ -238,12 +211,11 @@ function App() {
             quantity: currentQty,
           });
           speak("혹시 이 메뉴들 중에 있을까요?");
-          return; // AI가 찾았으므로 여기서 종료
+          return;
         }
       }
 
-      // 3. AI도 못 찾았거나 원본 텍스트가 없다면, 기존처럼 카테고리 TOP3로 폴백 (기존 로직 보존)
-      console.log("⚠️ AI 추천 결과 없음 -> 카테고리 인기 메뉴로 폴백");
+      // 3. AI도 결과 없거나 원본 발화가 없으면 카테고리 TOP3로 폴백
       const top3 = await fetchCategoryTop3(wrongMenu.categoryName);
       logic.setFallback({ open: true, type: "TOP3", data: top3, quantity: currentQty });
       speak("대신 이 카테고리에서 가장 인기 있는 메뉴들이에요.");
@@ -255,6 +227,9 @@ function App() {
     }
   };
 
+  /**
+   * 수량 모달에서 확인 시 — menusRef로 최신 menus 참조 후 장바구니에 추가
+   */
   const handleQuantityConfirm = (qty) => {
     const menu = menusRef.current.find((m) => m.name === logic.modalMenuName);
     logic.updateCartItems(menu, qty);

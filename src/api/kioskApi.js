@@ -35,10 +35,8 @@ export const fetchTop3Menus = async () => {
   }
 };
 
-// 🔥 [추가] 특정 카테고리 내의 TOP 3 메뉴를 가져오는 함수
 export const fetchCategoryTop3 = async (categoryName) => {
   try {
-    // 백엔드 엔드포인트 설계에 맞게 쿼리 파라미터로 categoryName 전달
     const response = await fetch(
       `${BASE_URL}/statistics/top3?categoryName=${categoryName}`,
     );
@@ -49,4 +47,25 @@ export const fetchCategoryTop3 = async (categoryName) => {
     console.error(`${categoryName} TOP 3 로드 실패:`, error);
     return [];
   }
+};
+
+export const postLearning = async (menuId, text, sessionId) => {
+  const res = await fetch(`${BASE_URL}/learning`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Session-ID": sessionId,
+    },
+    body: JSON.stringify({ menuId, text }),
+  });
+  return res.json();
+};
+
+export const fetchAiRecommend = async (query) => {
+  const response = await fetch(`${BASE_URL}/ai/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  return response.json();
 };
