@@ -90,16 +90,19 @@ No test suite is configured.
 
 ### Backend communication
 
-All URLs are defined in `src/constants/api.js`:
+All URLs are defined in `src/constants/api.js` (gitignored — copy from `api_.js` template):
 
 - `BASE_URL` → `https://kemini-kiosk-api.duckdns.org/api`
 - `WS_URL` → `wss://kemini-kiosk-api.duckdns.org/ws/voice`
+- `LIPREADING_WS_URL` → `wss://kemini-kiosk-api.duckdns.org/ws/lipreading`
 
-WebSocket messages from the server are either:
+WebSocket messages from the server (`WS_URL`):
 
 - Plain text (live STT transcript) → displayed in the voice bar
 - `SYSTEM:SESSION_ID:<id>` → stores the session ID
 - `SYSTEM:PROCESS_ORDERS:<json>` → triggers the order processing queue
+- `SYSTEM:LIPREADING_ANALYZING` → shows loading spinner (STT confidence low, lip-reading in progress)
+- `SYSTEM:LIPREADING_MATCH:<menuId>:<menuName>:<score>` → hides spinner, shows result toast + TTS
 
 ### Order processing flow (App.jsx)
 
@@ -121,6 +124,8 @@ After any modal interaction completes, the queue resumes via `processNextOrder`.
 | `src/App.jsx`                            | Root component — owns order queue, modal state wiring, and all inter-hook coordination                                     |
 | `src/hooks/useVoiceOrder.js`             | WebSocket + Web Audio API + Web Speech Synthesis; handles recording, streaming, TTS                                        |
 | `src/hooks/useKioskLogic.js`             | Cart state, category/menu data loading, payment                                                                            |
+| `src/hooks/useLipReading.js`             | Camera frame streaming to `/ws/lipreading` at ~15fps (always-on, Spring Boot manages timing via circular buffer)           |
+| `src/hooks/useEyeTracking.js`            | MediaPipe Face Mesh 기반 시선 추적 — wandering / deviation / fixed 패턴 감지, 토글 방식                                    |
 | `src/api/kioskApi.js`                    | REST API calls: categories, menus, TOP3 stats, category TOP3, learning (`postLearning`), AI recommend (`fetchAiRecommend`) |
 | `src/components/FallbackModal.jsx`       | Multi-mode modal (CONFIRM / SIMILAR / TOP3) for ambiguous orders                                                           |
 | `src/components/QuantityModal.jsx`       | Shown when order has quantity=0; lets user pick a count                                                                    |
@@ -146,6 +151,19 @@ Cart items stored in `cartItems` state (array):
 ### Hybrid recommendation ("learnedMatch")
 
 When the backend returns `learnedMatch: true`, a CONFIRM modal asks "Is this the right menu?" If the user rejects, `handleConfirmReject` calls `/api/ai/recommend` with the original transcript for a semantic re-search, falling back to `/api/statistics/top3?categoryName=...` if AI returns nothing.
+
+### Lip-reading flow
+
+`useLipReading` opens a camera stream on mount and sends 320×240 JPEG frames (~15fps) to `LIPREADING_WS_URL` (`/ws/lipreading`) via WebSocket — always-on, page lifetime. Spring Boot maintains a circular frame buffer; when STT confidence < 0.8, it flushes the buffer to the Python vision server for inference and sends the result back via the voice WebSocket.
+
+`handleSystemMessage` in App.jsx handles two lip-reading messages:
+
+| Message | Behavior |
+| ------- | -------- |
+| `SYSTEM:LIPREADING_ANALYZING` | `isLipReadingAnalyzing = true` → shows spinner toast |
+| `SYSTEM:LIPREADING_MATCH:…` | `isLipReadingAnalyzing = false` → shows result toast + TTS (cart already updated by backend) |
+
+**StrictMode note**: The async `getUserMedia` in `useLipReading` uses a `cancelled` flag to prevent double-stream initialization in React dev mode.
 
 ### Learning API
 
