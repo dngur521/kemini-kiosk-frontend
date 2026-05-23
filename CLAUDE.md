@@ -1,3 +1,5 @@
+claude --resume 7da453fa-b04f-4407-92e1-3a13225d52da
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -114,16 +116,16 @@ After any modal interaction completes, the queue resumes via `processNextOrder`.
 
 ### Key files
 
-| File                                     | Purpose                                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `src/App.jsx`                            | Root component — owns order queue, modal state wiring, and all inter-hook coordination             |
-| `src/hooks/useVoiceOrder.js`             | WebSocket + Web Audio API + Web Speech Synthesis; handles recording, streaming, TTS                |
-| `src/hooks/useKioskLogic.js`             | Cart state, category/menu data loading, payment                                                    |
+| File                                     | Purpose                                                                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `src/App.jsx`                            | Root component — owns order queue, modal state wiring, and all inter-hook coordination                                     |
+| `src/hooks/useVoiceOrder.js`             | WebSocket + Web Audio API + Web Speech Synthesis; handles recording, streaming, TTS                                        |
+| `src/hooks/useKioskLogic.js`             | Cart state, category/menu data loading, payment                                                                            |
 | `src/api/kioskApi.js`                    | REST API calls: categories, menus, TOP3 stats, category TOP3, learning (`postLearning`), AI recommend (`fetchAiRecommend`) |
-| `src/components/FallbackModal.jsx`       | Multi-mode modal (CONFIRM / SIMILAR / TOP3) for ambiguous orders                                   |
-| `src/components/QuantityModal.jsx`       | Shown when order has quantity=0; lets user pick a count                                            |
-| `src/components/PaymentSuccessModal.jsx` | Post-payment confirmation with order number                                                        |
-| `public/AudioProcessor.js`               | `AudioWorkletProcessor` — converts Float32 mic audio to LINEAR16 PCM before sending over WebSocket |
+| `src/components/FallbackModal.jsx`       | Multi-mode modal (CONFIRM / SIMILAR / TOP3) for ambiguous orders                                                           |
+| `src/components/QuantityModal.jsx`       | Shown when order has quantity=0; lets user pick a count                                                                    |
+| `src/components/PaymentSuccessModal.jsx` | Post-payment confirmation with order number                                                                                |
+| `public/AudioProcessor.js`               | `AudioWorkletProcessor` — converts Float32 mic audio to LINEAR16 PCM before sending over WebSocket                         |
 
 ### Voice recording details
 
@@ -134,7 +136,9 @@ After any modal interaction completes, the queue resumes via `processNextOrder`.
 Cart items stored in `cartItems` state (array):
 
 ```js
-{ menuId, menuName, quantity, price }
+{
+  (menuId, menuName, quantity, price);
+}
 ```
 
 `updateCartItems(menu, qty)` is the single write path — positive qty adds, negative decrements, items at 0 are removed. `handleCancel(menuName, qty | "ALL")` is used for voice-cancel paths.
