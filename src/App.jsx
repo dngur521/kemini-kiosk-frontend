@@ -170,7 +170,7 @@ function App() {
           })
           .filter(Boolean);
         if (enriched.length > 0) {
-          setLipReadingCandidates(enriched);
+          setLipReadingCandidates({ data: enriched, type: "LIPREADING_CANDIDATES" });
           speakFunc("혹시 이 메뉴를 말씀하셨나요?");
         }
         return;
@@ -196,7 +196,7 @@ function App() {
           })
           .filter(Boolean);
         if (enriched.length > 0) {
-          setLipReadingCandidates(enriched);
+          setLipReadingCandidates({ data: enriched, type: "AI_CANDIDATES" });
           speakFunc("혹시 이 메뉴를 찾으시나요?");
         }
         return;
@@ -549,8 +549,8 @@ function App() {
       />
       <FallbackModal
         isOpen={lipReadingCandidates !== null}
-        type="LIPREADING_CANDIDATES"
-        data={lipReadingCandidates}
+        type={lipReadingCandidates?.type}
+        data={lipReadingCandidates?.data}
         onSelect={handleLipReadingCandidateSelect}
         onClose={() => setLipReadingCandidates(null)}
       />

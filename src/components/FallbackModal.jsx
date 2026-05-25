@@ -7,6 +7,7 @@ const FallbackModal = ({ isOpen, type, data, onSelect, onReject, onClose }) => {
     if (type === "CONFIRM") return "🤔 이 메뉴가 맞으신가요?";
     if (type === "SIMILAR") return "🔍 혹시 이걸 찾으시나요?";
     if (type === "LIPREADING_CANDIDATES") return "👄 혹시 이 메뉴를 말씀하셨나요?";
+    if (type === "AI_CANDIDATES") return "🔍 혹시 이걸 찾으시나요?";
     return "🔥 이런 메뉴는 어떠세요?";
   };
 
@@ -16,6 +17,7 @@ const FallbackModal = ({ isOpen, type, data, onSelect, onReject, onClose }) => {
       return "말씀하신 내용이 아래 메뉴가 맞는지 확인해 주세요.";
     if (type === "SIMILAR") return "말씀하신 내용과 가장 비슷한 메뉴예요.";
     if (type === "LIPREADING_CANDIDATES") return "입술 모양으로 찾은 후보예요. 맞는 메뉴를 선택해 주세요.";
+    if (type === "AI_CANDIDATES") return "말씀하신 내용과 가장 비슷한 메뉴예요.";
     return "잘 이해하지 못했어요. 대신 인기 메뉴를 추천해 드릴게요!";
   };
 
