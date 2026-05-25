@@ -31,6 +31,8 @@ function App() {
   const speakRef = useRef(null);
   // handleSystemMessage stale closure 대응 — updateCartItems 최신값 유지
   const updateCartItemsRef = useRef(null);
+  // LIPREADING_CANDIDATES 수신 시 녹음 중단용 ref
+  const stopRecordingRef = useRef(null);
 
   /**
    * [즉시 처리 로직]
@@ -181,6 +183,7 @@ function App() {
       if (message.startsWith("SYSTEM:LIPREADING_CANDIDATES:")) {
         const candidates = JSON.parse(message.replace("SYSTEM:LIPREADING_CANDIDATES:", ""));
         setIsLipReadingAnalyzing(false);
+        stopRecordingRef.current?.();
         const enriched = candidates
           .map((c) => {
             const menu = menusRef.current.find((m) => m.id === c.id);
@@ -264,6 +267,9 @@ function App() {
   useEffect(() => {
     updateCartItemsRef.current = logic.updateCartItems;
   });
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  });
 
   // --- 아이트래킹 ---
   const { isActive: isEyeActive, detectedPattern, fixedGazePos, toggleEyeTracking, clearPattern } =
@@ -317,6 +323,7 @@ function App() {
   };
 
   const handleLipReadingCandidateSelect = async (menu) => {
+    const wasLipReading = lipReadingCandidates?.type === "LIPREADING_CANDIDATES";
     const qty = menu.lipReadingQuantity || 1;
     try {
       await postCart(realSessionId, menu.id, qty);
@@ -326,6 +333,7 @@ function App() {
     updateCartItemsRef.current?.(menu, qty);
     setLipReadingCandidates(null);
     speak(`${menu.name} 담았습니다.`);
+    if (wasLipReading) startRecording();
   };
 
   /**
@@ -614,7 +622,11 @@ function App() {
         type={lipReadingCandidates?.type}
         data={lipReadingCandidates?.data}
         onSelect={handleLipReadingCandidateSelect}
-        onClose={() => setLipReadingCandidates(null)}
+        onClose={() => {
+          const wasLipReading = lipReadingCandidates?.type === "LIPREADING_CANDIDATES";
+          setLipReadingCandidates(null);
+          if (wasLipReading) startRecording();
+        }}
       />
       <PaymentSuccessModal
         isOpen={logic.isSuccessOpen}
