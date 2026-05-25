@@ -27,6 +27,8 @@ function App() {
   const transcriptRef = useRef("");
   // 아이트래킹 패턴 핸들러에서 speak 최신값을 참조하기 위한 ref
   const speakRef = useRef(null);
+  // handleSystemMessage stale closure 대응 — updateCartItems 최신값 유지
+  const updateCartItemsRef = useRef(null);
 
   /**
    * [즉시 처리 로직]
@@ -166,11 +168,13 @@ function App() {
       }
 
       if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
-        const [, , , menuName, scoreStr] = message.split(":");
+        const [, , menuIdStr, menuName, scoreStr] = message.split(":");
         setIsLipReadingAnalyzing(false);
         setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
         speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
         setTimeout(() => setLipReadingMatch(null), 3000);
+        const menu = menusRef.current.find((m) => m.id === Number(menuIdStr));
+        if (menu) updateCartItemsRef.current?.(menu, 1);
       }
     },
     [processNextOrder],
@@ -197,6 +201,9 @@ function App() {
   }, [transcript]);
   useEffect(() => {
     speakRef.current = speak;
+  });
+  useEffect(() => {
+    updateCartItemsRef.current = logic.updateCartItems;
   });
 
   // --- 아이트래킹 ---
