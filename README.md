@@ -48,8 +48,12 @@ REST API       : https://kemini-kiosk-api.duckdns.org/api
 - 서버 → 클라이언트 (텍스트): 실시간 STT 문자열
 - 서버 → 클라이언트 (`SYSTEM:SESSION_ID:<id>`): 세션 ID 전달
 - 서버 → 클라이언트 (`SYSTEM:PROCESS_ORDERS:<json>`): 처리된 주문 배열 전달
+- 서버 → 클라이언트 (`SYSTEM:CONFIRM_ORDER:<json>`): 주문 확인 모달 표시 (수락 시 `POST /api/cart/{sessionId}`, 거절 시 AI 추천)
 - 서버 → 클라이언트 (`SYSTEM:LIPREADING_ANALYZING`): 립리딩 분석 중 (스피너 표시)
-- 서버 → 클라이언트 (`SYSTEM:LIPREADING_MATCH:<id>:<name>:<score>`): 립리딩 결과
+- 서버 → 클라이언트 (`SYSTEM:LIPREADING_MATCH:<id>:<name>:<score>`): 립리딩 결과 + 로컬 장바구니 업데이트
+- 서버 → 클라이언트 (`SYSTEM:LIPREADING_CANDIDATES:<json>`): 립리딩 후보 선택 모달 (`{id,name,score,quantity}[]`)
+- 서버 → 클라이언트 (`SYSTEM:LIPREADING_FAILED`): 립리딩 실패 알림
+- 서버 → 클라이언트 (`SYSTEM:AI_CANDIDATES:<json>`): AI 의미 검색 후보 선택 모달 (`{id,name,quantity}[]`)
 
 립리딩 WebSocket: 클라이언트 → 서버로 320×240 JPEG 프레임을 ~15fps로 상시 전송
 
@@ -64,7 +68,7 @@ src/
 │   ├── useLipReading.js     # 카메라 프레임 → /ws/lipreading 상시 스트리밍
 │   └── useEyeTracking.js    # MediaPipe 시선 추적 (wandering/deviation/fixed 패턴)
 ├── components/
-│   ├── FallbackModal.jsx    # 추천/확인 모달 (CONFIRM / SIMILAR / TOP3)
+│   ├── FallbackModal.jsx    # 추천/확인 모달 (CONFIRM / SIMILAR / TOP3 / LIPREADING_CANDIDATES / AI_CANDIDATES / CONFIRM_ORDER)
 │   ├── QuantityModal.jsx    # 수량 입력 모달
 │   └── PaymentSuccessModal.jsx
 ├── api/

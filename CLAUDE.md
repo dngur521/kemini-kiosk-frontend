@@ -101,8 +101,12 @@ WebSocket messages from the server (`WS_URL`):
 - Plain text (live STT transcript) → displayed in the voice bar
 - `SYSTEM:SESSION_ID:<id>` → stores the session ID
 - `SYSTEM:PROCESS_ORDERS:<json>` → triggers the order processing queue
+- `SYSTEM:CONFIRM_ORDER:<json>` → shows confirm modal; on accept calls `POST /api/cart/{sessionId}` per item; on reject calls AI recommend
 - `SYSTEM:LIPREADING_ANALYZING` → shows loading spinner (STT confidence low, lip-reading in progress)
-- `SYSTEM:LIPREADING_MATCH:<menuId>:<menuName>:<score>` → hides spinner, shows result toast + TTS
+- `SYSTEM:LIPREADING_MATCH:<menuId>:<menuName>:<score>` → hides spinner, shows result toast + TTS, updates local cart
+- `SYSTEM:LIPREADING_CANDIDATES:<json>` → hides spinner, shows 👄 candidate selection modal (`{id,name,score,quantity}[]`)
+- `SYSTEM:LIPREADING_FAILED` → hides spinner, shows orange failure toast + TTS
+- `SYSTEM:AI_CANDIDATES:<json>` → shows 🔍 AI candidate selection modal (`{id,name,quantity}[]`); no ANALYZING precedes this
 
 ### Order processing flow (App.jsx)
 
@@ -126,8 +130,8 @@ After any modal interaction completes, the queue resumes via `processNextOrder`.
 | `src/hooks/useKioskLogic.js`             | Cart state, category/menu data loading, payment                                                                            |
 | `src/hooks/useLipReading.js`             | Camera frame streaming to `/ws/lipreading` at ~15fps (always-on, Spring Boot manages timing via circular buffer)           |
 | `src/hooks/useEyeTracking.js`            | MediaPipe Face Mesh 기반 시선 추적 — wandering / deviation / fixed 패턴 감지, 토글 방식                                    |
-| `src/api/kioskApi.js`                    | REST API calls: categories, menus, TOP3 stats, category TOP3, learning (`postLearning`), AI recommend (`fetchAiRecommend`) |
-| `src/components/FallbackModal.jsx`       | Multi-mode modal (CONFIRM / SIMILAR / TOP3) for ambiguous orders                                                           |
+| `src/api/kioskApi.js`                    | REST API calls: categories, menus, TOP3 stats, category TOP3, learning (`postLearning`), AI recommend (`fetchAiRecommend`), cart add (`postCart`) |
+| `src/components/FallbackModal.jsx`       | Multi-mode modal (CONFIRM / SIMILAR / TOP3 / LIPREADING_CANDIDATES / AI_CANDIDATES / CONFIRM_ORDER)                        |
 | `src/components/QuantityModal.jsx`       | Shown when order has quantity=0; lets user pick a count                                                                    |
 | `src/components/PaymentSuccessModal.jsx` | Post-payment confirmation with order number                                                                                |
 | `public/AudioProcessor.js`               | `AudioWorkletProcessor` — converts Float32 mic audio to LINEAR16 PCM before sending over WebSocket                         |
@@ -156,12 +160,18 @@ When the backend returns `learnedMatch: true`, a CONFIRM modal asks "Is this the
 
 `useLipReading` opens a camera stream on mount and sends 320×240 JPEG frames (~15fps) to `LIPREADING_WS_URL` (`/ws/lipreading`) via WebSocket — always-on, page lifetime. Spring Boot maintains a circular frame buffer; when STT confidence < 0.8, it flushes the buffer to the Python vision server for inference and sends the result back via the voice WebSocket.
 
-`handleSystemMessage` in App.jsx handles two lip-reading messages:
+`handleSystemMessage` in App.jsx handles all lip-reading and AI messages:
 
 | Message | Behavior |
 | ------- | -------- |
 | `SYSTEM:LIPREADING_ANALYZING` | `isLipReadingAnalyzing = true` → shows spinner toast |
-| `SYSTEM:LIPREADING_MATCH:…` | `isLipReadingAnalyzing = false` → shows result toast + TTS (cart already updated by backend) |
+| `SYSTEM:LIPREADING_MATCH:…` | spinner off → result toast + TTS + local cart update (`updateCartItemsRef`) |
+| `SYSTEM:LIPREADING_CANDIDATES:…` | spinner off → 👄 candidate modal (`lipReadingCandidates` state); on select calls `postCart` + updates local cart |
+| `SYSTEM:LIPREADING_FAILED` | spinner off → orange failure toast 3s + TTS |
+| `SYSTEM:AI_CANDIDATES:…` | 🔍 candidate modal (no spinner); on select calls `postCart` + updates local cart |
+| `SYSTEM:CONFIRM_ORDER:…` | confirm modal (`confirmOrder` state); on accept calls `postCart` per item; on reject calls `fetchAiRecommend` → AI_CANDIDATES modal |
+
+**Stale closure 대응:** `updateCartItemsRef = useRef(null)` 로 `logic.updateCartItems` 최신값 유지 (매 렌더 `useEffect`로 갱신). `speakRef`·`menusRef`도 동일 패턴.
 
 **StrictMode note**: The async `getUserMedia` in `useLipReading` uses a `cancelled` flag to prevent double-stream initialization in React dev mode.
 
