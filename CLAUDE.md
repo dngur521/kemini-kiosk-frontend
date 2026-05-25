@@ -100,13 +100,23 @@ WebSocket messages from the server (`WS_URL`):
 
 - Plain text (live STT transcript) → displayed in the voice bar
 - `SYSTEM:SESSION_ID:<id>` → stores the session ID
-- `SYSTEM:PROCESS_ORDERS:<json>` → triggers the order processing queue
-- `SYSTEM:CONFIRM_ORDER:<json>` → shows confirm modal; on accept calls `POST /api/cart/{sessionId}` per item; on reject calls AI recommend
-- `SYSTEM:LIPREADING_ANALYZING` → shows loading spinner (STT confidence low, lip-reading in progress)
-- `SYSTEM:LIPREADING_MATCH:<menuId>:<menuName>:<score>` → hides spinner, shows result toast + TTS, updates local cart
-- `SYSTEM:LIPREADING_CANDIDATES:<json>` → hides spinner, shows 👄 candidate selection modal (`{id,name,score,quantity}[]`)
-- `SYSTEM:LIPREADING_FAILED` → hides spinner, shows orange failure toast + TTS
-- `SYSTEM:AI_CANDIDATES:<json>` → shows 🔍 AI candidate selection modal (`{id,name,quantity}[]`); no ANALYZING precedes this
+- `SYSTEM:PROCESS_ORDERS:<json>` → triggers the order processing queue (직접 매칭 + confidence ≥ 0.6)
+- `SYSTEM:CONFIRM_ORDER:<json>` → 시노님 별칭 매칭; shows confirm modal; on accept calls `POST /api/cart/{sessionId}` per item; on reject calls AI recommend
+- `SYSTEM:AI_CANDIDATES:<json>` → NLP 실패 + AI 추천 있음; 🔍 candidate selection modal (`{id,name,quantity}[]`)
+- `SYSTEM:POPULAR_MENUS:<json>` → NLP·AI 모두 실패; 🔥 TOP3 인기 메뉴 모달 (`{id,name,price,imageUrl}[]`, 항상 3개)
+- `SYSTEM:LIPREADING_ANALYZING` → **[비활성]** spinner toast
+- `SYSTEM:LIPREADING_MATCH:<menuId>:<menuName>:<score>` → **[비활성]** result toast + cart update
+- `SYSTEM:LIPREADING_CANDIDATES:<json>` → **[비활성]** 👄 candidate modal (`{id,name,score,quantity}[]`)
+- `SYSTEM:LIPREADING_FAILED` → **[비활성]** orange failure toast + TTS
+
+**STT 분기 흐름:**
+```
+STT 인식 완료
+  ├─ 시노님 매칭          → SYSTEM:CONFIRM_ORDER
+  ├─ 직접 매칭 (고신뢰도) → SYSTEM:PROCESS_ORDERS
+  ├─ AI 추천 있음         → SYSTEM:AI_CANDIDATES
+  └─ 전부 실패            → SYSTEM:POPULAR_MENUS
+```
 
 ### Order processing flow (App.jsx)
 
