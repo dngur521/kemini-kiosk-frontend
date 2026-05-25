@@ -8,6 +8,7 @@ const FallbackModal = ({ isOpen, type, data, onSelect, onReject, onClose }) => {
     if (type === "SIMILAR") return "🔍 혹시 이걸 찾으시나요?";
     if (type === "LIPREADING_CANDIDATES") return "👄 혹시 이 메뉴를 말씀하셨나요?";
     if (type === "AI_CANDIDATES") return "🔍 혹시 이걸 찾으시나요?";
+    if (type === "CONFIRM_ORDER") return "🛒 주문 확인";
     return "🔥 이런 메뉴는 어떠세요?";
   };
 
@@ -18,6 +19,9 @@ const FallbackModal = ({ isOpen, type, data, onSelect, onReject, onClose }) => {
     if (type === "SIMILAR") return "말씀하신 내용과 가장 비슷한 메뉴예요.";
     if (type === "LIPREADING_CANDIDATES") return "입술 모양으로 찾은 후보예요. 맞는 메뉴를 선택해 주세요.";
     if (type === "AI_CANDIDATES") return "말씀하신 내용과 가장 비슷한 메뉴예요.";
+    if (type === "CONFIRM_ORDER" && data) {
+      return `혹시 ${data.map((m) => `${m.name} ${m.lipReadingQuantity}개`).join(", ")} 맞으세요?`;
+    }
     return "잘 이해하지 못했어요. 대신 인기 메뉴를 추천해 드릴게요!";
   };
 
@@ -46,11 +50,11 @@ const FallbackModal = ({ isOpen, type, data, onSelect, onReject, onClose }) => {
 
         <div className="modal-footer">
           {/* 🔥 [핵심] CONFIRM 타입일 때만 전용 버튼 노출 */}
-          {type === "CONFIRM" ? (
+          {type === "CONFIRM" || type === "CONFIRM_ORDER" ? (
             <div className="confirm-actions">
               <button
                 className="modal-btn btn-primary"
-                onClick={() => onSelect(data[0])}
+                onClick={() => onSelect(type === "CONFIRM_ORDER" ? data : data[0])}
               >
                 네, 맞아요
               </button>

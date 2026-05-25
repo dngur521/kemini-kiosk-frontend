@@ -20,7 +20,8 @@ function App() {
   const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
   const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 MATCH 결과 표시용
   const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
-  const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩 후보 선택 모달
+  const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩/AI 후보 선택 모달
+  const [confirmOrder, setConfirmOrder] = useState(null); // CONFIRM_ORDER 확인 모달
 
   // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
@@ -155,6 +156,23 @@ function App() {
         return;
       }
 
+      if (message.startsWith("SYSTEM:CONFIRM_ORDER:")) {
+        const orders = JSON.parse(message.replace("SYSTEM:CONFIRM_ORDER:", ""));
+        const enriched = orders
+          .map((o) => {
+            const menu = menusRef.current.find((m) => m.id === o.id);
+            return menu ? { ...menu, lipReadingQuantity: o.quantity } : null;
+          })
+          .filter(Boolean);
+        if (enriched.length > 0) {
+          setLearningText(transcriptRef.current);
+          setConfirmOrder(enriched);
+          const orderText = enriched.map((m) => `${m.name} ${m.lipReadingQuantity}개`).join(", ");
+          speakFunc(`혹시 ${orderText} 맞으세요?`);
+        }
+        return;
+      }
+
       if (message.startsWith("SYSTEM:LIPREADING_ANALYZING")) {
         setIsLipReadingAnalyzing(true);
         return;
@@ -225,7 +243,7 @@ function App() {
     stopRecording,
     speak,
     stopSpeak,
-  } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen || lipReadingCandidates !== null);
+  } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen || lipReadingCandidates !== null || confirmOrder !== null);
 
   useEffect(() => {
     menusRef.current = logic.menus;
@@ -242,7 +260,7 @@ function App() {
 
   // --- 아이트래킹 ---
   const { isActive: isEyeActive, detectedPattern, fixedGazePos, toggleEyeTracking, clearPattern } =
-    useEyeTracking(() => logic.fallback.open || logic.isModalOpen || logic.isSuccessOpen || lipReadingCandidates !== null);
+    useEyeTracking(() => logic.fallback.open || logic.isModalOpen || logic.isSuccessOpen || lipReadingCandidates !== null || confirmOrder !== null);
 
   useEffect(() => {
     if (!detectedPattern) return;
@@ -261,6 +279,35 @@ function App() {
     }
     clearPattern();
   }, [detectedPattern, fixedGazePos, clearPattern]);
+
+  const handleConfirmOrderAccept = async (items) => {
+    setConfirmOrder(null);
+    for (const menu of items) {
+      const qty = menu.lipReadingQuantity || 1;
+      try {
+        await postCart(realSessionId, menu.id, qty);
+      } catch (e) {
+        console.error("장바구니 추가 실패:", e);
+      }
+      updateCartItemsRef.current?.(menu, qty);
+    }
+    speak(items.length === 1 ? `${items[0].name} 담았습니다.` : "주문을 장바구니에 담았습니다.");
+  };
+
+  const handleConfirmOrderReject = async () => {
+    setConfirmOrder(null);
+    speak("죄송해요. 비슷한 메뉴를 찾아볼게요.");
+    try {
+      const aiSuggestions = await fetchAiRecommend(learningText);
+      if (aiSuggestions && aiSuggestions.length > 0) {
+        const enriched = aiSuggestions.map((m) => ({ ...m, lipReadingQuantity: 1 }));
+        setLipReadingCandidates({ data: enriched, type: "AI_CANDIDATES" });
+        speak("혹시 이 메뉴를 찾으시나요?");
+      }
+    } catch (e) {
+      console.error("AI 추천 실패:", e);
+    }
+  };
 
   const handleLipReadingCandidateSelect = async (menu) => {
     const qty = menu.lipReadingQuantity || 1;
@@ -546,6 +593,14 @@ function App() {
           logic.setFallback({ ...logic.fallback, open: false });
           processNextOrder(orderQueue, speak);
         }}
+      />
+      <FallbackModal
+        isOpen={confirmOrder !== null}
+        type="CONFIRM_ORDER"
+        data={confirmOrder}
+        onSelect={handleConfirmOrderAccept}
+        onReject={handleConfirmOrderReject}
+        onClose={() => setConfirmOrder(null)}
       />
       <FallbackModal
         isOpen={lipReadingCandidates !== null}
