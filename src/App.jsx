@@ -156,6 +156,11 @@ function App() {
         return;
       }
 
+      if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
+        setIsLipReadingAnalyzing(false);
+        return;
+      }
+
       if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
         const [, , , menuName, scoreStr] = message.split(":");
         setIsLipReadingAnalyzing(false);
