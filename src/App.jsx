@@ -18,6 +18,7 @@ function App() {
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
   const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
+  const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 MATCH 결과 표시용
   const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
   const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩 후보 선택 모달
 
@@ -172,6 +173,17 @@ function App() {
           setLipReadingCandidates(enriched);
           speakFunc("혹시 이 메뉴를 말씀하셨나요?");
         }
+        return;
+      }
+
+      if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
+        const [, , menuIdStr, menuName, scoreStr] = message.split(":");
+        setIsLipReadingAnalyzing(false);
+        setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
+        speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
+        setTimeout(() => setLipReadingMatch(null), 3000);
+        const menu = menusRef.current.find((m) => m.id === Number(menuIdStr));
+        if (menu) updateCartItemsRef.current?.(menu, 1);
         return;
       }
 
@@ -486,6 +498,11 @@ function App() {
         <div className="lipreading-toast analyzing">
           <div className="lipreading-spinner"></div>
           <span>입술 모양 분석 중...</span>
+        </div>
+      )}
+      {lipReadingMatch && (
+        <div className="lipreading-toast">
+          <span>립리딩: {lipReadingMatch.menuName} ({Math.round(lipReadingMatch.score * 100)}%)</span>
         </div>
       )}
       {lipReadingFailed && (
