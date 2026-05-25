@@ -187,6 +187,21 @@ function App() {
         return;
       }
 
+      if (message.startsWith("SYSTEM:AI_CANDIDATES:")) {
+        const candidates = JSON.parse(message.replace("SYSTEM:AI_CANDIDATES:", ""));
+        const enriched = candidates
+          .map((c) => {
+            const menu = menusRef.current.find((m) => m.id === c.id);
+            return menu ? { ...menu, lipReadingQuantity: c.quantity } : null;
+          })
+          .filter(Boolean);
+        if (enriched.length > 0) {
+          setLipReadingCandidates(enriched);
+          speakFunc("혹시 이 메뉴를 찾으시나요?");
+        }
+        return;
+      }
+
       if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
         setIsLipReadingAnalyzing(false);
         setLipReadingFailed(true);
