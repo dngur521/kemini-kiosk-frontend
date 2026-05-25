@@ -17,9 +17,10 @@ function App() {
   const [learningText, setLearningText] = useState("");
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
-  const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
-  const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 MATCH 결과 표시용
-  const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
+  // [립리딩 비활성화] 복구 시 아래 3줄 주석 해제
+  // const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false);
+  // const [lipReadingMatch, setLipReadingMatch] = useState(null);
+  // const [lipReadingFailed, setLipReadingFailed] = useState(false);
   const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩/AI 후보 선택 모달
   const [confirmOrder, setConfirmOrder] = useState(null); // CONFIRM_ORDER 확인 모달
 
@@ -173,35 +174,43 @@ function App() {
         return;
       }
 
-      if (message.startsWith("SYSTEM:LIPREADING_ANALYZING")) {
-        setIsLipReadingAnalyzing(true);
-        return;
-      }
+      // [립리딩 비활성화] 복구 시 아래 블록 주석 해제
+      // if (message.startsWith("SYSTEM:LIPREADING_ANALYZING")) {
+      //   setIsLipReadingAnalyzing(true);
+      //   return;
+      // }
 
-      if (message.startsWith("SYSTEM:LIPREADING_CANDIDATES:")) {
-        const candidates = JSON.parse(message.replace("SYSTEM:LIPREADING_CANDIDATES:", ""));
-        setIsLipReadingAnalyzing(false);
-        const enriched = candidates
-          .map((c) => {
-            const menu = menusRef.current.find((m) => m.id === c.id);
-            return menu ? { ...menu, lipReadingQuantity: c.quantity } : null;
-          })
-          .filter(Boolean);
-        if (enriched.length > 0) {
-          setLipReadingCandidates({ data: enriched, type: "LIPREADING_CANDIDATES" });
-          speakFunc("혹시 이 메뉴를 말씀하셨나요?");
-        }
-        return;
-      }
+      // if (message.startsWith("SYSTEM:LIPREADING_CANDIDATES:")) {
+      //   const candidates = JSON.parse(message.replace("SYSTEM:LIPREADING_CANDIDATES:", ""));
+      //   setIsLipReadingAnalyzing(false);
+      //   const enriched = candidates
+      //     .map((c) => {
+      //       const menu = menusRef.current.find((m) => m.id === c.id);
+      //       return menu ? { ...menu, lipReadingQuantity: c.quantity } : null;
+      //     })
+      //     .filter(Boolean);
+      //   if (enriched.length > 0) {
+      //     setLipReadingCandidates({ data: enriched, type: "LIPREADING_CANDIDATES" });
+      //     speakFunc("혹시 이 메뉴를 말씀하셨나요?");
+      //   }
+      //   return;
+      // }
 
-      if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
-        const [, , menuIdStr, menuName, scoreStr] = message.split(":");
-        setIsLipReadingAnalyzing(false);
-        setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
-        speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
-        setTimeout(() => setLipReadingMatch(null), 3000);
-        const menu = menusRef.current.find((m) => m.id === Number(menuIdStr));
-        if (menu) updateCartItemsRef.current?.(menu, 1);
+      // if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
+      //   const [, , menuIdStr, menuName, scoreStr] = message.split(":");
+      //   setIsLipReadingAnalyzing(false);
+      //   setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
+      //   speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
+      //   setTimeout(() => setLipReadingMatch(null), 3000);
+      //   const menu = menusRef.current.find((m) => m.id === Number(menuIdStr));
+      //   if (menu) updateCartItemsRef.current?.(menu, 1);
+      //   return;
+      // }
+
+      if (message.startsWith("SYSTEM:POPULAR_MENUS:")) {
+        const menus = JSON.parse(message.replace("SYSTEM:POPULAR_MENUS:", ""));
+        setLipReadingCandidates({ data: menus.map((m) => ({ ...m, lipReadingQuantity: 1 })), type: "TOP3" });
+        speakFunc("잘 이해하지 못했어요. 대신 인기 메뉴를 추천해 드릴게요.");
         return;
       }
 
@@ -220,13 +229,14 @@ function App() {
         return;
       }
 
-      if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
-        setIsLipReadingAnalyzing(false);
-        setLipReadingFailed(true);
-        speakFunc("입술 모양으로도 인식하지 못했어요. 다시 말씀해 주세요.");
-        setTimeout(() => setLipReadingFailed(false), 3000);
-        return;
-      }
+      // [립리딩 비활성화] 복구 시 아래 블록 주석 해제
+      // if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
+      //   setIsLipReadingAnalyzing(false);
+      //   setLipReadingFailed(true);
+      //   speakFunc("입술 모양으로도 인식하지 못했어요. 다시 말씀해 주세요.");
+      //   setTimeout(() => setLipReadingFailed(false), 3000);
+      //   return;
+      // }
 
     },
     [processNextOrder],
@@ -556,7 +566,8 @@ function App() {
           <span>KEMINI가 대답하고 있어요...</span>
         </div>
       )}
-      {isLipReadingAnalyzing && (
+      {/* [립리딩 비활성화] 복구 시 아래 블록 주석 해제 */}
+      {/* {isLipReadingAnalyzing && (
         <div className="lipreading-toast analyzing">
           <div className="lipreading-spinner"></div>
           <span>입술 모양 분석 중...</span>
@@ -571,7 +582,7 @@ function App() {
         <div className="lipreading-toast failed">
           <span>입술 모양을 인식하지 못했어요</span>
         </div>
-      )}
+      )} */}
 
       <QuantityModal
         isOpen={logic.isModalOpen}

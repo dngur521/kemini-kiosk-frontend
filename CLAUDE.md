@@ -156,20 +156,32 @@ Cart items stored in `cartItems` state (array):
 
 When the backend returns `learnedMatch: true`, a CONFIRM modal asks "Is this the right menu?" If the user rejects, `handleConfirmReject` calls `/api/ai/recommend` with the original transcript for a semantic re-search, falling back to `/api/statistics/top3?categoryName=...` if AI returns nothing.
 
-### Lip-reading flow
+### Lip-reading flow (현재 비활성화)
 
-`useLipReading` opens a camera stream on mount and sends 320×240 JPEG frames (~15fps) to `LIPREADING_WS_URL` (`/ws/lipreading`) via WebSocket — always-on, page lifetime. Spring Boot maintains a circular frame buffer; when STT confidence < 0.8, it flushes the buffer to the Python vision server for inference and sends the result back via the voice WebSocket.
+**현재 상태:** 립리딩 코드는 주석처리되어 있음. 카메라 스트리밍 없이 동작하며, LIPREADING_* 메시지는 무시됨.
 
-`handleSystemMessage` in App.jsx handles all lip-reading and AI messages:
+**복구 방법:**
+1. `src/hooks/useLipReading.js` — 파일 하단의 빈 훅(`export const useLipReading = () => {};`)을 제거하고, 위쪽 주석 블록 전체 해제
+2. `src/App.jsx` — `[립리딩 비활성화]` 주석이 붙은 4곳 해제:
+   - `isLipReadingAnalyzing` / `lipReadingMatch` / `lipReadingFailed` state 3개
+   - `SYSTEM:LIPREADING_ANALYZING` 핸들러
+   - `SYSTEM:LIPREADING_CANDIDATES` 핸들러
+   - `SYSTEM:LIPREADING_MATCH` 핸들러
+   - `SYSTEM:LIPREADING_FAILED` 핸들러
+   - JSX 토스트 3개 (isLipReadingAnalyzing / lipReadingMatch / lipReadingFailed)
 
-| Message | Behavior |
-| ------- | -------- |
-| `SYSTEM:LIPREADING_ANALYZING` | `isLipReadingAnalyzing = true` → shows spinner toast |
-| `SYSTEM:LIPREADING_MATCH:…` | spinner off → result toast + TTS + local cart update (`updateCartItemsRef`) |
-| `SYSTEM:LIPREADING_CANDIDATES:…` | spinner off → 👄 candidate modal (`lipReadingCandidates` state); on select calls `postCart` + updates local cart |
-| `SYSTEM:LIPREADING_FAILED` | spinner off → orange failure toast 3s + TTS |
-| `SYSTEM:AI_CANDIDATES:…` | 🔍 candidate modal (no spinner); on select calls `postCart` + updates local cart |
-| `SYSTEM:CONFIRM_ORDER:…` | confirm modal (`confirmOrder` state); on accept calls `postCart` per item; on reject calls `fetchAiRecommend` → AI_CANDIDATES modal |
+**원래 동작:** `useLipReading`이 마운트 시 카메라를 열고 `/ws/lipreading`으로 320×240 JPEG를 ~15fps 상시 전송. Spring Boot 원형 버퍼 → STT confidence < 0.8이면 Python 비전 서버로 플러시.
+
+`handleSystemMessage`가 처리하는 전체 메시지 (현재 LIPREADING_* 4개는 주석):
+
+| Message | 상태 | Behavior |
+| ------- | ---- | -------- |
+| `SYSTEM:LIPREADING_ANALYZING` | **비활성** | spinner toast |
+| `SYSTEM:LIPREADING_MATCH:…` | **비활성** | result toast + TTS + local cart update |
+| `SYSTEM:LIPREADING_CANDIDATES:…` | **비활성** | 👄 candidate modal |
+| `SYSTEM:LIPREADING_FAILED` | **비활성** | orange failure toast + TTS |
+| `SYSTEM:AI_CANDIDATES:…` | 활성 | 🔍 candidate modal; on select calls `postCart` |
+| `SYSTEM:CONFIRM_ORDER:…` | 활성 | confirm modal; on accept calls `postCart` per item |
 
 **Stale closure 대응:** `updateCartItemsRef = useRef(null)` 로 `logic.updateCartItems` 최신값 유지 (매 렌더 `useEffect`로 갱신). `speakRef`·`menusRef`도 동일 패턴.
 
