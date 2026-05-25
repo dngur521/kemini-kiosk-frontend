@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchAiRecommend, fetchCategoryTop3, fetchTop3Menus, postLearning } from "./api/kioskApi";
+import { fetchAiRecommend, fetchCategoryTop3, fetchTop3Menus, postCart, postLearning } from "./api/kioskApi";
 import "./App.css";
 import FallbackModal from "./components/FallbackModal";
 import PaymentSuccessModal from "./components/PaymentSuccessModal";
@@ -17,7 +17,6 @@ function App() {
   const [learningText, setLearningText] = useState("");
   const [realSessionId, setRealSessionId] = useState("");
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
-  const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 결과 표시용
   const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
   const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
   const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩 후보 선택 모달
@@ -164,7 +163,10 @@ function App() {
         const candidates = JSON.parse(message.replace("SYSTEM:LIPREADING_CANDIDATES:", ""));
         setIsLipReadingAnalyzing(false);
         const enriched = candidates
-          .map((c) => menusRef.current.find((m) => m.id === c.id))
+          .map((c) => {
+            const menu = menusRef.current.find((m) => m.id === c.id);
+            return menu ? { ...menu, lipReadingQuantity: c.quantity } : null;
+          })
           .filter(Boolean);
         if (enriched.length > 0) {
           setLipReadingCandidates(enriched);
@@ -181,15 +183,6 @@ function App() {
         return;
       }
 
-      if (message.startsWith("SYSTEM:LIPREADING_MATCH:")) {
-        const [, , menuIdStr, menuName, scoreStr] = message.split(":");
-        setIsLipReadingAnalyzing(false);
-        setLipReadingMatch({ menuName, score: parseFloat(scoreStr) });
-        speakFunc(`립리딩으로 ${menuName} 담았습니다.`);
-        setTimeout(() => setLipReadingMatch(null), 3000);
-        const menu = menusRef.current.find((m) => m.id === Number(menuIdStr));
-        if (menu) updateCartItemsRef.current?.(menu, 1);
-      }
     },
     [processNextOrder],
   );
@@ -242,8 +235,14 @@ function App() {
     clearPattern();
   }, [detectedPattern, fixedGazePos, clearPattern]);
 
-  const handleLipReadingCandidateSelect = (menu) => {
-    updateCartItemsRef.current?.(menu, 1);
+  const handleLipReadingCandidateSelect = async (menu) => {
+    const qty = menu.lipReadingQuantity || 1;
+    try {
+      await postCart(realSessionId, menu.id, qty);
+    } catch (e) {
+      console.error("립리딩 장바구니 추가 실패:", e);
+    }
+    updateCartItemsRef.current?.(menu, qty);
     setLipReadingCandidates(null);
     speak(`${menu.name} 담았습니다.`);
   };
@@ -487,11 +486,6 @@ function App() {
         <div className="lipreading-toast analyzing">
           <div className="lipreading-spinner"></div>
           <span>입술 모양 분석 중...</span>
-        </div>
-      )}
-      {lipReadingMatch && (
-        <div className="lipreading-toast">
-          <span>립리딩: {lipReadingMatch.menuName} ({Math.round(lipReadingMatch.score * 100)}%)</span>
         </div>
       )}
       {lipReadingFailed && (

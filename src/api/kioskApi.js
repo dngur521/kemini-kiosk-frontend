@@ -61,6 +61,19 @@ export const postLearning = async (menuId, text, sessionId) => {
   return res.json();
 };
 
+export const postCart = async (sessionId, menuId, quantity) => {
+  try {
+    const res = await fetch(`${BASE_URL}/cart/${sessionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ menuId, quantity }),
+    });
+    return res.json();
+  } catch (e) {
+    console.error("장바구니 추가 실패:", e);
+  }
+};
+
 export const fetchAiRecommend = async (query) => {
   const response = await fetch(`${BASE_URL}/ai/recommend`, {
     method: "POST",
