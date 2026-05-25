@@ -20,6 +20,7 @@ function App() {
   const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 결과 표시용
   const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
   const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
+  const [lipReadingCandidates, setLipReadingCandidates] = useState(null); // 립리딩 후보 선택 모달
 
   // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
@@ -159,6 +160,19 @@ function App() {
         return;
       }
 
+      if (message.startsWith("SYSTEM:LIPREADING_CANDIDATES:")) {
+        const candidates = JSON.parse(message.replace("SYSTEM:LIPREADING_CANDIDATES:", ""));
+        setIsLipReadingAnalyzing(false);
+        const enriched = candidates
+          .map((c) => menusRef.current.find((m) => m.id === c.id))
+          .filter(Boolean);
+        if (enriched.length > 0) {
+          setLipReadingCandidates(enriched);
+          speakFunc("혹시 이 메뉴를 말씀하셨나요?");
+        }
+        return;
+      }
+
       if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
         setIsLipReadingAnalyzing(false);
         setLipReadingFailed(true);
@@ -191,7 +205,7 @@ function App() {
     stopRecording,
     speak,
     stopSpeak,
-  } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen);
+  } = useVoiceOrder(handleSystemMessage, () => logic.fallback.open || logic.isModalOpen || lipReadingCandidates !== null);
 
   useEffect(() => {
     menusRef.current = logic.menus;
@@ -208,7 +222,7 @@ function App() {
 
   // --- 아이트래킹 ---
   const { isActive: isEyeActive, detectedPattern, fixedGazePos, toggleEyeTracking, clearPattern } =
-    useEyeTracking(() => logic.fallback.open || logic.isModalOpen || logic.isSuccessOpen);
+    useEyeTracking(() => logic.fallback.open || logic.isModalOpen || logic.isSuccessOpen || lipReadingCandidates !== null);
 
   useEffect(() => {
     if (!detectedPattern) return;
@@ -227,6 +241,12 @@ function App() {
     }
     clearPattern();
   }, [detectedPattern, fixedGazePos, clearPattern]);
+
+  const handleLipReadingCandidateSelect = (menu) => {
+    updateCartItemsRef.current?.(menu, 1);
+    setLipReadingCandidates(null);
+    speak(`${menu.name} 담았습니다.`);
+  };
 
   /**
    * 모달 액션 처리 (인터랙션 완료 후 큐 재개)
@@ -500,6 +520,13 @@ function App() {
           logic.setFallback({ ...logic.fallback, open: false });
           processNextOrder(orderQueue, speak);
         }}
+      />
+      <FallbackModal
+        isOpen={lipReadingCandidates !== null}
+        type="LIPREADING_CANDIDATES"
+        data={lipReadingCandidates}
+        onSelect={handleLipReadingCandidateSelect}
+        onClose={() => setLipReadingCandidates(null)}
       />
       <PaymentSuccessModal
         isOpen={logic.isSuccessOpen}
