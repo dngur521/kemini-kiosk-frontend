@@ -19,6 +19,7 @@ function App() {
   const [orderQueue, setOrderQueue] = useState([]); // 처리 대기 중인 주문 큐
   const [lipReadingMatch, setLipReadingMatch] = useState(null); // 립리딩 결과 표시용
   const [isLipReadingAnalyzing, setIsLipReadingAnalyzing] = useState(false); // 립리딩 분석 중 로딩
+  const [lipReadingFailed, setLipReadingFailed] = useState(false); // 립리딩 매칭 실패 알림
 
   // handleQuantityConfirm의 stale closure를 피하기 위해 ref로 최신 menus를 유지
   const menusRef = useRef([]);
@@ -158,6 +159,9 @@ function App() {
 
       if (message.startsWith("SYSTEM:LIPREADING_FAILED")) {
         setIsLipReadingAnalyzing(false);
+        setLipReadingFailed(true);
+        speakFunc("입술 모양으로도 인식하지 못했어요. 다시 말씀해 주세요.");
+        setTimeout(() => setLipReadingFailed(false), 3000);
         return;
       }
 
@@ -461,6 +465,11 @@ function App() {
       {lipReadingMatch && (
         <div className="lipreading-toast">
           <span>립리딩: {lipReadingMatch.menuName} ({Math.round(lipReadingMatch.score * 100)}%)</span>
+        </div>
+      )}
+      {lipReadingFailed && (
+        <div className="lipreading-toast failed">
+          <span>입술 모양을 인식하지 못했어요</span>
         </div>
       )}
 
